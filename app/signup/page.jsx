@@ -46,50 +46,72 @@ const SignUp = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900">
-      <Card className="w-96 bg-gray-800 text-white shadow-xl p-6">
-      <img
-            alt="name"
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900">
+      
+      <Card className="w-96 bg-gray-800 text-white border-0 shadow-xl">
+        <CardContent className="p-8">
+          <img
+            alt="profile"
             src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSSjRzSvbCVFZLM7RRaU8gCuuOioUec38lZkg&s"
-            className="h-20 w-20 mx-auto object-cover rounded-full "
-      />
-        <CardContent>
+            className="h-20 w-20 mx-auto object-cover rounded-full mb-4"
+          />
           <h1 className="text-2xl font-semibold text-center mb-5">Sign Up</h1>
+          
           {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
+          <div className="mb-4">
+            <label htmlFor="name" className="text-white mb-2 block">Full name</label>
+            <Input
+              type="text"
+              placeholder="Full Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="mb-4 bg-gray-800 border-gray-600 text-white"
+            />
+          </div>
+
+          <div className="mb-4">
+            <label htmlFor="email" className="text-white mb-2 block">Email</label>
+            <Input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="mb-4 bg-gray-800 border-gray-600 text-white"
+            />
+          </div>
+
           
-          <Input
-            type="text"
-            placeholder="Full Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="mb-4"
-          />
-          <Input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mb-4"
-          />
-          <Input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="mb-4"
-          />
-          <Input
-            type="password"
-            placeholder="Confirm Password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            className="mb-4"
-          />
+          <div className="mb-4">
+            <label htmlFor="password" className="text-white mb-2 block">Password</label>
+            <Input
+              type="password"
+              id="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="bg-gray-800 border-gray-600 text-white"
+            />
+          </div>
           
-          <Button onClick={handleSignUp} className="w-full bg-green-600 hover:bg-green-500">
+          <div className="mb-6">
+            <label htmlFor="confirmPassword" className="text-white mb-2 block">Re-enter password</label>
+            <Input
+              type="password"
+              id="confirmPassword"
+              placeholder="Confirm Password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="bg-gray-800 border-gray-600 text-white"
+            />
+          </div>
+          
+          <Button 
+            onClick={handleSignUp} 
+            className="w-full bg-green-600 hover:bg-green-500 text-white font-medium py-2"
+          >
             Sign Up
           </Button>
-
+          
           <p className="text-gray-400 text-sm mt-4 text-center">
             Already have an account? <a href="/login" className="text-green-500">Login</a>
           </p>
