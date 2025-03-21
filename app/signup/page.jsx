@@ -86,12 +86,12 @@ const SignUp = () => {
             className="mb-4"
           />
           
-          <Button onClick={handleSignUp} className="w-full bg-indigo-600 hover:bg-indigo-500">
+          <Button onClick={handleSignUp} className="w-full bg-green-600 hover:bg-green-500">
             Sign Up
           </Button>
 
           <p className="text-gray-400 text-sm mt-4 text-center">
-            Already have an account? <a href="/login" className="text-indigo-400">Login</a>
+            Already have an account? <a href="/login" className="text-green-500">Login</a>
           </p>
         </CardContent>
       </Card>
