@@ -5,14 +5,17 @@ This is a React-based project for managing and submitting event proposals for An
 
 ## 1. Install dependencies
 
+```sh
 npm install
+```
 
 ## 2. Install Firebase and Firebase Tools
 
+```sh
 npm install firebase
 npm install -g firebase-tools
 npm install react-firebase-hooks
-
+```
 ## 3. Set up ShadCN
 Initialize ShadCN:
 ```sh
