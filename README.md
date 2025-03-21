@@ -1,4 +1,4 @@
-# Event Proposal for Anokha Techfest
+# Event Proposal for Anokha Techfest 🌟
 This is a React-based project for managing and submitting event proposals for Anokha Techfest. The project is built using Firebase for backend services and ShadCN components for a modern and responsive UI.
 
 ## 🚀 Getting Started
