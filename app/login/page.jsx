@@ -44,7 +44,7 @@ const SignIn = () => {
             className="h-20 w-20 mx-auto object-cover rounded-full "
       />
         <CardHeader>
-          <CardTitle className="text-center text-xl">Login</CardTitle>
+          <CardTitle className="text-center text-2xl font-semibold">Login</CardTitle>
         </CardHeader>
         <CardContent>
           <Input 
@@ -72,6 +72,10 @@ const SignIn = () => {
               <SelectItem value="admin">Admin</SelectItem>
             </SelectContent>
           </Select>
+
+          <div className="my-3 text-right pr-1">
+            <a className="text-green-600 cursor-pointer hover:underline" onClick={() => router.push("/reset")}>Forgot Password</a>
+          </div>
 
           {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
 
