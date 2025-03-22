@@ -57,7 +57,7 @@ const ForgotPassword = () => {
           )}
           
           {success && (
-            <Alert className="mb-4 bg-green-900 border-green-800 text-white">
+            <Alert className="mb-4 bg-green-800 border-green-700 text-white">
               <AlertDescription>
                 Password reset email sent! Check your inbox for further instructions.
               </AlertDescription>
