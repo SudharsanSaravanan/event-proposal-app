@@ -52,10 +52,10 @@ const SignUp = () => {
         <CardContent className="p-8">
           <img
             alt="profile"
-            src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSSjRzSvbCVFZLM7RRaU8gCuuOioUec38lZkg&s"
+            src="/anokha_logo.png"
             className="h-20 w-20 mx-auto object-cover rounded-full mb-4"
           />
-          <h1 className="text-2xl font-semibold text-center mb-5">Sign Up</h1>
+          <h1 className="text-2xl font-semibold text-center mb-5">Sign Up as a Proposer</h1>
           
           {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
           <div className="mb-4">
