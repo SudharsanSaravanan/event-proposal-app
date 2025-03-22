@@ -41,7 +41,7 @@ const SignIn = () => {
         <CardContent className="p-8">
           <img
             alt="profile"
-            src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSSjRzSvbCVFZLM7RRaU8gCuuOioUec38lZkg&s"
+            src="/anokha_logo.png"
             className="h-20 w-20 mx-auto object-cover rounded-full mb-4"
           />
           <h1 className="text-2xl font-semibold text-center mb-5">Login</h1>
@@ -98,10 +98,6 @@ const SignIn = () => {
           >
             Login
           </Button>
-          
-          <p className="text-gray-400 text-sm mt-4 text-center">
-            Don't have an account? <a href="/signup" className="text-green-500">Sign Up</a>
-          </p>
         </CardContent>
       </Card>
     </div>
