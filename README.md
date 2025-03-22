@@ -26,7 +26,11 @@ Add necessary components:
 ```sh
 npx shadcn@latest add input button card select alert
 ```
+## 3. Install Lucide-React
 
+```sh
+npm install lucide-react
+```
 
 ## 4. Start the development server
 ```sh
