@@ -24,7 +24,7 @@ npx shadcn@latest init
 
 Add necessary components:
 ```sh
-npx shadcn@latest add input button card select
+npx shadcn@latest add input button card select alert
 ```
 
 
