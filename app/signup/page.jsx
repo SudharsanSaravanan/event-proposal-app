@@ -1,8 +1,9 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useCreateUserWithEmailAndPassword } from "react-firebase-hooks/auth";
-import { auth } from "@/app/firebase/config";
+import { doc, setDoc } from "firebase/firestore";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth, db } from "@/app/firebase/config";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,32 +14,53 @@ const SignUp = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
-  const [createUserWithEmailAndPassword] = useCreateUserWithEmailAndPassword(auth);
   const router = useRouter();
 
   const handleSignUp = async () => {
-    setError(""); // Reset error before new attempt
-
+    setError(""); 
+  
     if (!name || !email || !password || !confirmPassword) {
       setError("All fields are required!");
       return;
     }
-
+  
     if (password !== confirmPassword) {
       setError("Passwords do not match!");
       return;
     }
-
+  
     try {
-      const res = await createUserWithEmailAndPassword(email, password);
-      console.log("User Signed Up:", res);
+      console.log("Attempting signup with:", email, password);
+  
+      // Create user in Firebase Authentication
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      
+      console.log("User Signed Up:", user);
+  
+      // Store additional user data in Firestore with role
+      const userRef = doc(db, "Auth", user.uid);
+      await setDoc(userRef, { 
+        name, 
+        email,
+        role: "User", // Add default role
+        createdAt: new Date().toISOString()
+      });
+  
+      console.log("User data stored in Firestore");
+  
+      // Store user info in session storage
       sessionStorage.setItem("user", true);
       sessionStorage.setItem("name", name);
+      
+      // Clear form
       setName("");
       setEmail("");
       setPassword("");
       setConfirmPassword("");
-      router.push("/login"); // Redirect to login after signup
+      
+      // Redirect to login page
+      router.push("/login");
     } catch (e) {
       setError(e.message);
       console.error("Signup Error:", e);
@@ -47,7 +69,6 @@ const SignUp = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900">
-      
       <Card className="w-96 bg-gray-800 text-white border-0 shadow-xl">
         <CardContent className="p-8">
           <img
@@ -80,7 +101,6 @@ const SignUp = () => {
             />
           </div>
 
-          
           <div className="mb-4">
             <label htmlFor="password" className="text-white mb-2 block">Password</label>
             <Input
