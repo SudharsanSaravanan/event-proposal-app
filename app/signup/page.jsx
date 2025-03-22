@@ -62,7 +62,7 @@ const SignUp = () => {
             <label htmlFor="name" className="text-white mb-2 block">Full name</label>
             <Input
               type="text"
-              placeholder="Full Name"
+              placeholder="Enter your Full Name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="mb-4 bg-gray-800 border-gray-600 text-white"
@@ -73,7 +73,7 @@ const SignUp = () => {
             <label htmlFor="email" className="text-white mb-2 block">Email</label>
             <Input
               type="email"
-              placeholder="Email"
+              placeholder="Enter your Amrita Email Address"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="mb-4 bg-gray-800 border-gray-600 text-white"
