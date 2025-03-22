@@ -7,6 +7,7 @@ import { auth, db } from "@/app/firebase/config";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { PasswordInput } from "@/components/ui/password-input";
 
 const SignUp = () => {
   const [name, setName] = useState("");
@@ -103,8 +104,7 @@ const SignUp = () => {
 
           <div className="mb-4">
             <label htmlFor="password" className="text-white mb-2 block">Password</label>
-            <Input
-              type="password"
+            <PasswordInput
               id="password"
               placeholder="Password"
               value={password}
@@ -115,8 +115,7 @@ const SignUp = () => {
           
           <div className="mb-6">
             <label htmlFor="confirmPassword" className="text-white mb-2 block">Re-enter password</label>
-            <Input
-              type="password"
+            <PasswordInput
               id="confirmPassword"
               placeholder="Confirm Password"
               value={confirmPassword}

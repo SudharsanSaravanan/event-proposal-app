@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PasswordInput } from "@/components/ui/password-input";
 
 const SignIn = () => {
   const [email, setEmail] = useState("");
@@ -62,8 +63,7 @@ const SignIn = () => {
           
           <div className="mb-4">
             <label htmlFor="password" className="text-white mb-2 block">Password</label>
-            <Input
-              type="password"
+            <PasswordInput
               id="password"
               placeholder="Enter your password"
               value={password}
