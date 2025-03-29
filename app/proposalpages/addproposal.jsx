@@ -1,434 +1,440 @@
-"use client";
-
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
-
-const formSchema = z.object({
-  title: z.string().min(5, "Title must be at least 5 characters"),
-  description: z.string().min(20, "Description must be at least 20 characters"),
-  objectives: z.string().min(5, "Objectives must be at least 5 characters"),
-  outcomes: z.string().min(5, "Outcomes must be at least 5 characters"),
-  participantEngagement: z.string().min(10, "Please describe engagement plan"),
-  duration: z.string().min(1, "Duration is required"),
-  registrationFee: z.number().min(0, "Fee cannot be negative"),
-  isIndividual: z.boolean(),
-  groupDetails: z.object({
-    maxGroupMembers: z.number().min(2, "Minimum 2 members"),
-    feeType: z.enum(["perhead", "group"]),
-  }),
-  maxSeats: z.number().min(1, "At least 1 seat required"),
-  isEvent: z.boolean(),
-  isTechnical: z.boolean(),
-  preferredDays: z.object({
-    day1: z.string().optional(),
-    day2: z.string().optional(),
-    day3: z.string().optional(),
-  }),
-  estimatedBudget: z.number().min(0, "Budget cannot be negative"),
-  potentialFundingSource: z.string().optional(),
-});
+import { useState } from "react";
 
 export default function AddProposalContent() {
-  const form = useForm({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      title: "",
-      description: "",
-      objectives: "",
-      outcomes: "",
-      participantEngagement: "",
-      duration: "",
-      registrationFee: 0,
-      isIndividual: true,
-      groupDetails: {
-        maxGroupMembers: 4,
-        feeType: "perhead",
-      },
-      maxSeats: 100,
-      isEvent: false,
-      isTechnical: true,
-      preferredDays: {
-        day1: "",
-        day2: "",
-        day3: "",
-      },
-      estimatedBudget: 0,
-      potentialFundingSource: "",
+  const [proposal, setProposal] = useState({
+    title: "",
+    description: "",
+    objectives: "",
+    outcomes: "",
+    participantEngagement: "",
+    duration: "",
+    registrationFee: 0,
+    isIndividual: true,
+    groupDetails: {
+      maxGroupMembers: 4,
+      feeType: "perhead"
     },
+    maxSeats: 100,
+    isEvent: false,
+    isTechnical: true,
+    preferredDays: {
+      day1: "",
+      day2: "",
+      day3: ""
+    },
+    estimatedBudget: 0,
+    potentialFundingSource: "",
+    resourcePersonDetails: "",
+    externalResources: ""
   });
 
-  function onSubmit(values) {
-    console.log(values);
-    // Submit to your API here
-  }
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    
+    if (name.includes(".")) {
+      const [parent, child] = name.split(".");
+      setProposal((prev) => ({
+        ...prev,
+        [parent]: {
+          ...prev[parent],
+          [child]: type === "checkbox" ? checked : value
+        }
+      }));
+    } else {
+      setProposal((prev) => ({
+        ...prev,
+        [name]: type === "checkbox" ? checked : value
+      }));
+    }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    // Generate a unique ID for the proposal
+    const newProposal = {
+      ...proposal,
+      id: `proposal_${Date.now()}` // Simple unique ID generation
+    };
+    
+    console.log("Submitting proposal:", newProposal);
+    // Here you would typically send the data to your backend API
+    // For now we'll just show an alert
+    alert("Proposal submitted successfully!");
+  };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-white">Add New Proposal</h1>
+    <div className="pb-10">
+      <h1 className="text-2xl font-bold mb-6 text-white">Add New Proposal</h1>
       
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pb-6">
-          {/* Basic Information */}
-          <div className="grid grid-cols-1 gap-6 p-6 bg-gray-800 rounded-lg">
-            <h2 className="text-xl font-semibold text-white">Basic Information</h2>
+      <form onSubmit={handleSubmit} className="space-y-6 text-white">
+        {/* Basic Information */}
+        <div className="p-6 bg-gray-800 rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold mb-4 text-blue-400">Basic Information</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium mb-1">Title *</label>
+              <input
+                type="text"
+                name="title"
+                value={proposal.title}
+                onChange={handleChange}
+                className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                required
+              />
+            </div>
             
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-white">Title</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Cloud Computing Workshop" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
+            <div>
+              <label className="block text-sm font-medium mb-1">Duration *</label>
+              <input
+                type="text"
+                name="duration"
+                value={proposal.duration}
+                onChange={handleChange}
+                placeholder="e.g. 3 hours"
+                className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                required
+              />
+            </div>
+          </div>
+          
+          <div className="mt-4">
+            <label className="block text-sm font-medium mb-1">Description *</label>
+            <textarea
               name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-white">Description</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="A hands-on workshop on AWS..."
-                      className="min-h-[100px]"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
+              value={proposal.description}
+              onChange={handleChange}
+              rows="3"
+              className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+              required
+            ></textarea>
+          </div>
+        </div>
+        
+        {/* Resource Person Details */}
+        <div className="p-6 bg-gray-800 rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold mb-4 text-blue-400">Resource Person Information</h2>
+          
+          <div className="grid grid-cols-1 gap-6">
+            <div>
+              <label className="block text-sm font-medium mb-1">Resource Person Details *</label>
+              <input
+                type="text"
+                name="resourcePersonDetails"
+                value={proposal.resourcePersonDetails}
+                onChange={handleChange}
+                placeholder="Name, Organization, Email"
+                className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                required
+              />
+              <p className="text-xs text-gray-400 mt-1">Example: John Doe, Google, john.doe@google.com</p>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">External Resources Required *</label>
+              <input
+                type="text"
+                name="externalResources"
+                value={proposal.externalResources}
+                onChange={handleChange}
+                placeholder="Projector, Specific software, etc."
+                className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                required
+              />
+              <p className="text-xs text-gray-400 mt-1">List any equipment, software, or resources needed</p>
+            </div>
+          </div>
+        </div>
+        
+        {/* Objectives and Outcomes */}
+        <div className="p-6 bg-gray-800 rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold mb-4 text-blue-400">Objectives and Outcomes</h2>
+          
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">Objectives *</label>
+            <textarea
               name="objectives"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-white">Objectives</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Learn AWS concepts, Working on Machine Learning models"
-                      className="min-h-[100px]"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
+              value={proposal.objectives}
+              onChange={handleChange}
+              rows="3"
+              className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+              placeholder="Enter the objectives of your proposal"
+              required
+            ></textarea>
+            <p className="text-xs text-gray-400 mt-1">Separate multiple objectives with commas or line breaks</p>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">Expected Outcomes *</label>
+            <textarea
               name="outcomes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-white">Expected Outcomes</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Understand AWS fundamentals"
-                      className="min-h-[100px]"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
+              value={proposal.outcomes}
+              onChange={handleChange}
+              rows="3"
+              className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+              placeholder="Enter the expected outcomes of your proposal"
+              required
+            ></textarea>
+            <p className="text-xs text-gray-400 mt-1">Separate multiple outcomes with commas or line breaks</p>
+          </div>
+          
+          <div className="mt-4">
+            <label className="block text-sm font-medium mb-1">Participant Engagement Plan *</label>
+            <textarea
               name="participantEngagement"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-white">Participant Engagement Plan</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Group activities, Q&A sessions..."
-                      className="min-h-[100px]"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="duration"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-white">Duration</FormLabel>
-                  <FormControl>
-                    <Input placeholder="3 hours" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              value={proposal.participantEngagement}
+              onChange={handleChange}
+              rows="2"
+              className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+              placeholder="Group activities, Q&A sessions, etc."
+              required
+            ></textarea>
           </div>
-
-          {/* Registration Details */}
-          <div className="grid grid-cols-1 gap-6 p-6 bg-gray-800 rounded-lg">
-            <h2 className="text-xl font-semibold text-white">Registration Details</h2>
+        </div>
+        
+        {/* Registration and Participation */}
+        <div className="p-6 bg-gray-800 rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold mb-4 text-blue-400">Registration and Participation</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium mb-1">Registration Fee (₹) *</label>
+              <input
+                type="number"
+                name="registrationFee"
+                value={proposal.registrationFee}
+                onChange={handleChange}
+                min="0"
+                className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                required
+              />
+            </div>
             
-            <FormField
-              control={form.control}
-              name="registrationFee"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-white">Registration Fee (₹)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      {...field}
-                      onChange={(e) => field.onChange(parseInt(e.target.value))}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="isIndividual"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel className="text-white">
-                      Individual Registration
-                    </FormLabel>
-                  </div>
-                </FormItem>
-              )}
-            />
-
-            {!form.watch("isIndividual") && (
-              <div className="space-y-4 pl-6">
-                <FormField
-                  control={form.control}
-                  name="groupDetails.maxGroupMembers"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-white">Max Group Members</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="groupDetails.feeType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-white">Fee Type</FormLabel>
-                      <FormControl>
-                        <select
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                          {...field}
-                        >
-                          <option value="perhead">Per Head</option>
-                          <option value="group">Per Group</option>
-                        </select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+            <div>
+              <label className="block text-sm font-medium mb-1">Maximum Seats *</label>
+              <input
+                type="number"
+                name="maxSeats"
+                value={proposal.maxSeats}
+                onChange={handleChange}
+                min="1"
+                className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                required
+              />
+            </div>
+          </div>
+          
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex items-center space-x-4">
+              <div>
+                <label className="inline-flex items-center">
+                  <input
+                    type="radio"
+                    name="isIndividual"
+                    checked={proposal.isIndividual}
+                    onChange={() => setProposal(prev => ({...prev, isIndividual: true}))}
+                    className="form-radio"
+                  />
+                  <span className="ml-2">Individual Registration</span>
+                </label>
               </div>
-            )}
-
-            <FormField
-              control={form.control}
-              name="maxSeats"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-white">Maximum Seats</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      {...field}
-                      onChange={(e) => field.onChange(parseInt(e.target.value))}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          {/* Event Type */}
-          <div className="grid grid-cols-1 gap-6 p-6 bg-gray-800 rounded-lg">
-            <h2 className="text-xl font-semibold text-white">Event Type</h2>
-            
-            <div className="flex gap-8">
-              <FormField
-                control={form.control}
-                name="isEvent"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel className="text-white">
-                        This is an Event (not a Workshop)
-                      </FormLabel>
-                    </div>
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="isTechnical"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel className="text-white">
-                        Technical Activity
-                      </FormLabel>
-                    </div>
-                  </FormItem>
-                )}
-              />
+              <div>
+                <label className="inline-flex items-center">
+                  <input
+                    type="radio"
+                    name="isIndividual"
+                    checked={!proposal.isIndividual}
+                    onChange={() => setProposal(prev => ({...prev, isIndividual: false}))}
+                    className="form-radio"
+                  />
+                  <span className="ml-2">Group Registration</span>
+                </label>
+              </div>
             </div>
           </div>
-
-          {/* Preferred Days */}
-          <div className="grid grid-cols-1 gap-6 p-6 bg-gray-800 rounded-lg">
-            <h2 className="text-xl font-semibold text-white">Preferred Days</h2>
+          
+          {!proposal.isIndividual && (
+            <div className="mt-4 bg-gray-700 p-4 rounded-md">
+              <h3 className="text-md font-semibold mb-3">Group Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Max Group Members *</label>
+                  <input
+                    type="number"
+                    name="groupDetails.maxGroupMembers"
+                    value={proposal.groupDetails.maxGroupMembers}
+                    onChange={handleChange}
+                    min="2"
+                    max="10"
+                    className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                    required={!proposal.isIndividual}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Fee Type *</label>
+                  <select
+                    name="groupDetails.feeType"
+                    value={proposal.groupDetails.feeType}
+                    onChange={handleChange}
+                    className="w-full p-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                    required={!proposal.isIndividual}
+                  >
+                    <option value="perhead">Per Head</option>
+                    <option value="group">Per Group</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {/* Type of Event */}
+        <div className="p-6 bg-gray-800 rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold mb-4 text-blue-400">Type of Event</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium mb-2">Event Type *</label>
+              <div className="flex items-center space-x-4">
+                <label className="inline-flex items-center">
+                  <input
+                    type="radio"
+                    name="isEvent"
+                    checked={proposal.isEvent}
+                    onChange={() => setProposal(prev => ({...prev, isEvent: true}))}
+                    className="form-radio"
+                  />
+                  <span className="ml-2">Event</span>
+                </label>
+                <label className="inline-flex items-center">
+                  <input
+                    type="radio"
+                    name="isEvent"
+                    checked={!proposal.isEvent}
+                    onChange={() => setProposal(prev => ({...prev, isEvent: false}))}
+                    className="form-radio"
+                  />
+                  <span className="ml-2">Workshop</span>
+                </label>
+              </div>
+            </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <FormField
-                control={form.control}
+            <div>
+              <label className="block text-sm font-medium mb-2">Technical Category *</label>
+              <div className="flex items-center space-x-4">
+                <label className="inline-flex items-center">
+                  <input
+                    type="radio"
+                    name="isTechnical"
+                    checked={proposal.isTechnical}
+                    onChange={() => setProposal(prev => ({...prev, isTechnical: true}))}
+                    className="form-radio"
+                  />
+                  <span className="ml-2">Technical</span>
+                </label>
+                <label className="inline-flex items-center">
+                  <input
+                    type="radio"
+                    name="isTechnical"
+                    checked={!proposal.isTechnical}
+                    onChange={() => setProposal(prev => ({...prev, isTechnical: false}))}
+                    className="form-radio"
+                  />
+                  <span className="ml-2">Non-Technical</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Scheduling */}
+        <div className="p-6 bg-gray-800 rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold mb-4 text-blue-400">Preferred Schedule</h2>
+          <p className="text-sm text-gray-400 mb-4">Please provide your preferred time slots for each day of the event</p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label className="block text-sm font-medium mb-1">Day 1</label>
+              <input
+                type="text"
                 name="preferredDays.day1"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-white">Day 1</FormLabel>
-                    <FormControl>
-                      <Input placeholder="10:00 AM - 1:00 PM" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                value={proposal.preferredDays.day1}
+                onChange={handleChange}
+                placeholder="e.g. 10:00 AM - 1:00 PM"
+                className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
               />
-
-              <FormField
-                control={form.control}
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Day 2</label>
+              <input
+                type="text"
                 name="preferredDays.day2"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-white">Day 2</FormLabel>
-                    <FormControl>
-                      <Input placeholder="2:00 PM - 5:00 PM" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                value={proposal.preferredDays.day2}
+                onChange={handleChange}
+                placeholder="e.g. 2:00 PM - 5:00 PM"
+                className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
               />
-
-              <FormField
-                control={form.control}
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Day 3</label>
+              <input
+                type="text"
                 name="preferredDays.day3"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-white">Day 3</FormLabel>
-                    <FormControl>
-                      <Input placeholder="11:00 AM - 2:00 PM" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                value={proposal.preferredDays.day3}
+                onChange={handleChange}
+                placeholder="e.g. 11:00 AM - 2:00 PM"
+                className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
               />
             </div>
           </div>
-
-          {/* Budget Details */}
-          <div className="grid grid-cols-1 gap-6 p-6 bg-gray-800 rounded-lg">
-            <h2 className="text-xl font-semibold text-white">Budget Details</h2>
+          <p className="text-sm text-gray-400 mt-2">At least one preferred time slot is required</p>
+        </div>
+        
+        {/* Budget */}
+        <div className="p-6 bg-gray-800 rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold mb-4 text-blue-400">Budget and Funding</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium mb-1">Estimated Budget (₹) *</label>
+              <input
+                type="number"
+                name="estimatedBudget"
+                value={proposal.estimatedBudget}
+                onChange={handleChange}
+                min="0"
+                className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                required
+              />
+            </div>
             
-            <FormField
-              control={form.control}
-              name="estimatedBudget"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-white">Estimated Budget (₹)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      {...field}
-                      onChange={(e) => field.onChange(parseInt(e.target.value))}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="potentialFundingSource"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-white">Potential Funding Source</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Tech Sponsors" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div>
+              <label className="block text-sm font-medium mb-1">Potential Funding Source *</label>
+              <input
+                type="text"
+                name="potentialFundingSource"
+                value={proposal.potentialFundingSource}
+                onChange={handleChange}
+                placeholder="e.g. Tech Sponsors, Department"
+                className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                required
+              />
+            </div>
           </div>
-
-          <div className="flex justify-end">
-            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-              Submit Proposal
-            </Button>
-          </div>
-        </form>
-      </Form>
+        </div>
+        
+        {/* Submit Button */}
+        <div className="flex justify-end pr-5">
+          <button
+            type="submit"
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-md font-medium transition-colors"
+          >
+            Submit Proposal
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
