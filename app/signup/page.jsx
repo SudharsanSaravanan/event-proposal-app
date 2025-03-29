@@ -12,11 +12,11 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Combobox } from "@/components/ui/combo-box";
 
 const departments = [
-  { value: "cse", label: "CSE" },
-  { value: "ece", label: "ECE" },
-  { value: "eee", label: "EEE" },
-  { value: "mech", label: "Mechanical" },
-  { value: "civil", label: "Civil" },
+  { value: "CSE", label: "CSE" },
+  { value: "ECE", label: "ECE" },
+  { value: "EEE", label: "EEE" },
+  { value: "MECH", label: "MECH" },
+  { value: "CIVIL", label: "CIVIL" },
 ];
 
 const SignUp = () => {

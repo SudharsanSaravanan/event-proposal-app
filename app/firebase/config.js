@@ -1,6 +1,7 @@
+// config.js
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore, collection, addDoc, doc, getDoc, getDocs, query, where, setDoc } from "firebase/firestore";
+import { getFirestore, doc, getDoc, collection, getDocs, query, where, setDoc } from "firebase/firestore";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -13,26 +14,26 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_MEASUREMENT_ID,
 };
 
-// Initialize Firebase
+// Initialize Firebase (only initialize once)
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Function to store user in Firestore "Auth" collection
-const saveUserToFirestore = async (name, email, userId) => {
+// Function to get a user's role by ID (used for role-based redirection)
+const getUserRole = async (userId) => {
   try {
     const userRef = doc(db, "Auth", userId);
-    await setDoc(userRef, {
-      name,
-      email,
-      role: "User", // Default role for all new users
-      createdAt: new Date().toISOString()
-    });
-    console.log("User added to Firestore successfully!");
-    return true;
+    const userSnap = await getDoc(userRef);
+    
+    if (userSnap.exists()) {
+      return userSnap.data().role || "User";
+    } else {
+      console.log("User document not found");
+      return null;
+    }
   } catch (error) {
-    console.error("Error adding user to Firestore:", error);
-    return false;
+    console.error("Error getting user role:", error);
+    return null;
   }
 };
 
@@ -54,38 +55,7 @@ const getUserById = async (userId) => {
   }
 };
 
-// Function to get all users
-const getAllUsers = async () => {
-  try {
-    const querySnapshot = await getDocs(collection(db, "Auth"));
-    const users = [];
-    querySnapshot.forEach((doc) => {
-      users.push({ id: doc.id, ...doc.data() });
-    });
-    return users;
-  } catch (error) {
-    console.error("Error getting users:", error);
-    return [];
-  }
-};
-
-// Function to search users by name
-const searchUsersByName = async (name) => {
-  try {
-    const q = query(collection(db, "Auth"), where("name", ">=", name), where("name", "<=", name + "\uf8ff"));
-    const querySnapshot = await getDocs(q);
-    const users = [];
-    querySnapshot.forEach((doc) => {
-      users.push({ id: doc.id, ...doc.data() });
-    });
-    return users;
-  } catch (error) {
-    console.error("Error searching users:", error);
-    return [];
-  }
-};
-
-// Function to get users by role
+// Function to get users by role (for admin panel)
 const getUsersByRole = async (role) => {
   try {
     const q = query(collection(db, "Auth"), where("role", "==", role));
@@ -101,13 +71,11 @@ const getUsersByRole = async (role) => {
   }
 };
 
-export { 
-  app, 
-  auth, 
-  db, 
-  saveUserToFirestore, 
-  getUserById, 
-  getAllUsers, 
-  searchUsersByName,
-  getUsersByRole
+export {
+  app,
+  auth,
+  db,
+  getUserRole,
+  getUserById,
+  getUsersByRole,
 };
