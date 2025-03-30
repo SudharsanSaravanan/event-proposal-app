@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
@@ -36,7 +35,7 @@ const formSchema = z.object({
   isIndividual: z.boolean(),
   groupDetails: z.object({
     maxGroupMembers: z.number().min(2, "Minimum 2 members"),
-    feeType: z.enum(["perhead", "group"]),
+    feeType: z.enum(["perhead", "pergroup"]),
   }).optional(),
   maxSeats: z.number().min(1, "At least 1 seat required"),
   isEvent: z.boolean(),
@@ -515,7 +514,7 @@ export default function AddProposalContent() {
                               {...field}
                             >
                               <option value="perhead">Per Head</option>
-                              <option value="group">Per Group</option>
+                              <option value="pergroup">Per Group</option>
                             </select>
                           </FormControl>
                           <FormMessage className="text-red-400" />
