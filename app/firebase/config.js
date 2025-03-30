@@ -1,19 +1,7 @@
+// config.js
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { 
-  getFirestore, 
-  collection, 
-  addDoc, 
-  doc, 
-  getDoc, 
-  getDocs, 
-  query, 
-  where, 
-  setDoc,
-  orderBy,
-  updateDoc,
-  serverTimestamp
-} from "firebase/firestore";
+import { getFirestore, doc, getDoc, collection, getDocs, query, where, setDoc } from "firebase/firestore";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -26,184 +14,60 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_MEASUREMENT_ID,
 };
 
-// Initialize Firebase
+// Initialize Firebase (only initialize once)
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-/**
- * Save a new user to Firestore "Auth" collection
- */
-const saveUserToFirestore = async (name, email, userId) => {
+// Function to get a user's role by ID (used for role-based redirection)
+const getUserRole = async (userId) => {
   try {
-    await setDoc(doc(db, "Auth", userId), {
-      name,
-      email,
-      role: "User",
-      createdAt: serverTimestamp()
-    });
-    return true;
+    const userRef = doc(db, "Auth", userId);
+    const userSnap = await getDoc(userRef);
+    
+    if (userSnap.exists()) {
+      return userSnap.data().role || "User";
+    } else {
+      console.log("User document not found");
+      return null;
+    }
   } catch (error) {
-    console.error("Error adding user to Firestore:", error);
-    return false;
+    console.error("Error getting user role:", error);
+    return null;
   }
 };
 
-/**
- * Get a single user by user ID
- */
+// Function to get a single user by ID
 const getUserById = async (userId) => {
   try {
-    const docSnap = await getDoc(doc(db, "Auth", userId));
-    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
+    const docRef = doc(db, "Auth", userId);
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() };
+    } else {
+      console.log("No such user!");
+      return null;
+    }
   } catch (error) {
     console.error("Error getting user:", error);
     return null;
   }
 };
 
-/**
- * Get all users from "Auth" collection
- */
-const getAllUsers = async () => {
-  try {
-    const querySnapshot = await getDocs(collection(db, "Auth"));
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  } catch (error) {
-    console.error("Error getting users:", error);
-    return [];
-  }
-};
-
-/**
- * Add a new proposal to Firestore "Proposals" collection
- */
-const addProposal = async (proposalData) => {
-  try {
-    const docRef = await addDoc(collection(db, "Proposals"), {
-      ...proposalData,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-    return docRef.id;
-  } catch (error) {
-    console.error("Error adding proposal:", error);
-    throw error;
-  }
-};
-
-/**
- * Get users filtered by role
- */
+// Function to get users by role (for admin panel)
 const getUsersByRole = async (role) => {
   try {
     const q = query(collection(db, "Auth"), where("role", "==", role));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const users = [];
+    querySnapshot.forEach((doc) => {
+      users.push({ id: doc.id, ...doc.data() });
+    });
+    return users;
   } catch (error) {
     console.error("Error getting users by role:", error);
     return [];
-  }
-};
-
-/**
- * Search users by name
- */
-const searchUsersByName = async (name) => {
-  try {
-    const q = query(collection(db, "Auth"), where("name", ">=", name), where("name", "<=", name + "\uf8ff"));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  } catch (error) {
-    console.error("Error searching users by name:", error);
-    return [];
-  }
-};
-
-/**
- * Get proposals by user ID
- */
-const getProposalsByUserId = async (userId) => {
-  try {
-    const q = query(
-      collection(db, "Proposals"),
-      where("proposerId", "==", userId),
-      orderBy("updatedAt", "desc")
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  } catch (error) {
-    console.error("Error getting proposals by user ID:", error);
-    return [];
-  }
-};
-
-/**
- * Get proposals submitted by a specific user
- */
-const getUserProposals = async (userId) => {
-  try {
-    // Add check to prevent query with undefined userId
-    if (!userId) {
-      console.warn("getUserProposals called without a valid userId");
-      return [];
-    }
-    
-    const q = query(collection(db, "Proposals"), where("proposerId", "==", userId));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  } catch (error) {
-    console.error("Error fetching user proposals:", error);
-    return [];
-  }
-};
-
-/**
- * Get a single proposal by proposal ID
- */
-const getProposalById = async (proposalId) => {
-  try {
-    const docSnap = await getDoc(doc(db, "Proposals", proposalId));
-    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
-  } catch (error) {
-    console.error("Error getting proposal:", error);
-    return null;
-  }
-};
-
-/**
- * Get proposal history
- */
-const getProposalHistory = async (proposalId) => {
-  try {
-    const q = query(collection(db, "Proposals", proposalId, "history"), orderBy("timestamp", "desc"));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  } catch (error) {
-    console.error("Error getting proposal history:", error);
-    return [];
-  }
-};
-
-/**
- * Update proposal status and store in history
- */
-const updateProposalStatus = async (proposalId, status, remarks, userId) => {
-  try {
-    const proposalRef = doc(db, "Proposals", proposalId);
-    await updateDoc(proposalRef, { status, updatedAt: serverTimestamp() });
-    
-    await addDoc(collection(db, "Proposals", proposalId, "history"), {
-      status,
-      timestamp: serverTimestamp(),
-      remarks: remarks || "",
-      updatedBy: userId
-    });
-    
-    return true;
-  } catch (error) {
-    console.error("Error updating proposal status:", error);
-    return false;
   }
 };
 
@@ -211,15 +75,7 @@ export {
   app,
   auth,
   db,
-  saveUserToFirestore,
+  getUserRole,
   getUserById,
-  getAllUsers,
-  searchUsersByName,
   getUsersByRole,
-  getProposalById,
-  getProposalHistory,
-  getProposalsByUserId, 
-  addProposal,
-  getUserProposals,
-  updateProposalStatus
 };
