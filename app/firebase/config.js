@@ -80,8 +80,11 @@ const getAllUsers = async () => {
  */
 const addProposal = async (proposalData) => {
   try {
+    // Create a copy of proposalData without the proposerName field
+    const { proposerName, ...dataToStore } = proposalData;
+    
     const docRef = await addDoc(collection(db, "Proposals"), {
-      ...proposalData,
+      ...dataToStore,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
