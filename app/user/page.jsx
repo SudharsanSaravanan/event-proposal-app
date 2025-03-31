@@ -1,22 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, FilePlus, LineChart, Menu } from "lucide-react";
+import { FileText, FilePlus, LineChart, Menu, Edit } from "lucide-react";
 import DashboardContent from "../proposalpages/dashboard";
 import ViewProposalsContent from "../proposalpages/viewproposals";
 import AddProposalContent from "../proposalpages/addproposal";
 import ProposalTrackingContent from "../proposalpages/proposaltracking";
+import EditProposalContent from "../proposalpages/editproposal";
 
 export default function UserPage() {
   const [activeView, setActiveView] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [selectedProposalId, setSelectedProposalId] = useState(null);
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+
+  // Function to handle switching to edit mode with a specific proposal
+  const handleEditProposal = (proposalId) => {
+    setSelectedProposalId(proposalId);
+    setActiveView("edit-proposal");
+  };
 
   const renderContent = () => {
     switch (activeView) {
       case "view-proposals":
-        return <ViewProposalsContent />;
+        return <ViewProposalsContent onEditProposal={handleEditProposal} />;
       case "add-proposal":
         return (
           <div className="h-full max-h-full overflow-y-auto">
@@ -27,6 +35,15 @@ export default function UserPage() {
         return (
           <div className="h-full max-h-full overflow-y-auto">
             <ProposalTrackingContent />
+          </div>
+        );
+      case "edit-proposal":
+        return (
+          <div className="h-full max-h-full overflow-y-auto">
+            <EditProposalContent 
+              proposalId={selectedProposalId} 
+              onBack={() => setActiveView("view-proposals")}
+            />
           </div>
         );
       default:

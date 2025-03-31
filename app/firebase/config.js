@@ -12,7 +12,8 @@ import {
   setDoc,
   orderBy,
   updateDoc,
-  serverTimestamp
+  serverTimestamp,
+  deleteField
 } from "firebase/firestore";
 
 // Firebase configuration
@@ -80,15 +81,35 @@ const getAllUsers = async () => {
  */
 const addProposal = async (proposalData) => {
   try {
-    // Create a copy of proposalData without the proposerName field
-    const { proposerName, ...dataToStore } = proposalData;
+    // Create a copy without id or proposerName if they exist
+    const { id, proposerName, ...dataToStore } = proposalData;
     
+    // Always set version to 1 for new proposals
+    dataToStore.version = 1;
+    
+    // Use the document reference to add the document
     const docRef = await addDoc(collection(db, "Proposals"), {
       ...dataToStore,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
-    return docRef.id;
+    
+    // Create a copy for history without status and version
+    const proposalForHistory = { ...dataToStore };
+    delete proposalForHistory.status; // Remove status from history
+    delete proposalForHistory.version; // Remove version from history
+    
+    const historyData = {
+      proposalThread: proposalForHistory,
+      updatedAt: serverTimestamp(),
+      remarks: "Proposal created",
+      version: 1
+    };
+    
+    // Add to history collection
+    await addDoc(collection(db, "Proposals", docRef.id, "History"), historyData);
+    
+    return docRef.id; // Return the Firestore-generated ID
   } catch (error) {
     console.error("Error adding proposal:", error);
     throw error;
@@ -152,6 +173,7 @@ const getUserProposals = async (userId) => {
       return [];
     }
     
+    // Use a simpler query without orderBy
     const q = query(collection(db, "Proposals"), where("proposerId", "==", userId));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -179,7 +201,7 @@ const getProposalById = async (proposalId) => {
  */
 const getProposalHistory = async (proposalId) => {
   try {
-    const q = query(collection(db, "Proposals", proposalId, "history"), orderBy("timestamp", "desc"));
+    const q = query(collection(db, "Proposals", proposalId, "History"), orderBy("version", "desc"));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   } catch (error) {
@@ -189,23 +211,162 @@ const getProposalHistory = async (proposalId) => {
 };
 
 /**
- * Update proposal status and store in history
+ * Add an entry to the proposal history
  */
-const updateProposalStatus = async (proposalId, status, remarks, userId) => {
+const addProposalHistory = async (proposalId, historyData, userId) => {
   try {
-    const proposalRef = doc(db, "Proposals", proposalId);
-    await updateDoc(proposalRef, { status, updatedAt: serverTimestamp() });
+    // Remove status and version from history data
+    if (historyData.proposalThread) {
+      delete historyData.proposalThread.status;
+      delete historyData.proposalThread.version;
+    }
     
-    await addDoc(collection(db, "Proposals", proposalId, "history"), {
-      status,
-      timestamp: serverTimestamp(),
-      remarks: remarks || "",
-      updatedBy: userId
+    await addDoc(collection(db, "Proposals", proposalId, "History"), {
+      ...historyData,
+      updatedAt: serverTimestamp(),
+      updatedBy: userId,
+      timestamp: serverTimestamp()
     });
+    return true;
+  } catch (error) {
+    console.error("Error adding proposal history:", error);
+    return false;
+  }
+};
+
+
+/**
+ * Update proposal status and manage history entries
+ */
+const updateProposalStatus = async (proposalId, newStatus, remarks, userId) => {
+  try {
+    // First get the current proposal data
+    const proposalRef = doc(db, "Proposals", proposalId);
+    const proposalSnap = await getDoc(proposalRef);
+    
+    if (!proposalSnap.exists()) {
+      throw new Error("Proposal not found");
+    }
+    
+    const proposalData = proposalSnap.data();
+    const currentStatus = proposalData.status?.toLowerCase() || "pending";
+    let newVersion = proposalData.version || 1;
+    
+    // Only increment version if new status is "reviewed"
+    if (newStatus.toLowerCase() === "reviewed") {
+      newVersion = (proposalData.version || 1) + 1;
+    }
+    
+    // Update the proposal with new status and version if needed
+    await updateDoc(proposalRef, { 
+      status: newStatus, 
+      updatedAt: serverTimestamp(),
+      version: newVersion
+    });
+    
+    // Create a copy for history without status and version
+    const proposalForHistory = { ...proposalData };
+    delete proposalForHistory.status;
+    delete proposalForHistory.version;
+    
+    // Check if there's already a history entry for this version
+    const historyQuery = query(
+      collection(db, "Proposals", proposalId, "History"),
+      where("version", "==", newVersion)
+    );
+    const historySnapshot = await getDocs(historyQuery);
+    
+    if (!historySnapshot.empty) {
+      // Update existing history entry
+      const historyDoc = historySnapshot.docs[0];
+      await updateDoc(doc(db, "Proposals", proposalId, "History", historyDoc.id), {
+        proposalThread: proposalForHistory,
+        updatedAt: serverTimestamp(),
+        remarks: remarks || `Status updated to ${newStatus}`
+      });
+    } else {
+      // Create new history entry
+      await addDoc(collection(db, "Proposals", proposalId, "History"), {
+        proposalThread: proposalForHistory,
+        updatedAt: serverTimestamp(),
+        remarks: remarks || `Status updated to ${newStatus}`,
+        version: newVersion,
+        updatedBy: userId
+      });
+    }
     
     return true;
   } catch (error) {
     console.error("Error updating proposal status:", error);
+    return false;
+  }
+};
+
+/**
+ * Update an existing proposal with new data
+ */
+const updateProposal = async (proposalId, proposalData) => {
+  try {
+    // Remove the id field if it exists before updating
+    const { id, ...dataToUpdate } = proposalData;
+    
+    const proposalRef = doc(db, "Proposals", proposalId);
+    
+    // Get current proposal to check version
+    const currentProposal = await getDoc(proposalRef);
+    const currentData = currentProposal.exists() ? currentProposal.data() : null;
+    
+    if (!currentData) {
+      throw new Error("Proposal not found");
+    }
+    
+    // Always maintain the same version unless status changes to "reviewed"
+    const version = dataToUpdate.status?.toLowerCase() === "reviewed" && 
+                  currentData.status?.toLowerCase() !== "reviewed" 
+                ? (currentData.version || 1) + 1 
+                : currentData.version || 1;
+    
+    // Update the proposal document
+    await updateDoc(proposalRef, {
+      ...dataToUpdate,
+      version,
+      updatedAt: serverTimestamp()
+    });
+    
+    // Create a copy for history without status and version
+    const proposalForHistory = { ...dataToUpdate };
+    delete proposalForHistory.status;
+    delete proposalForHistory.version;
+    
+    // Check if there's already a history entry for this version
+    const historyQuery = query(
+      collection(db, "Proposals", proposalId, "History"),
+      where("version", "==", version)
+    );
+    
+    const historySnapshot = await getDocs(historyQuery);
+    
+    if (!historySnapshot.empty) {
+      // Update existing history entry
+      const historyDoc = historySnapshot.docs[0];
+      await updateDoc(doc(db, "Proposals", proposalId, "History", historyDoc.id), {
+        proposalThread: proposalForHistory,
+        updatedAt: serverTimestamp(),
+        remarks: "Proposal updated"
+      });
+    } else {
+      // Create new history entry if one doesn't exist for this version
+      await addDoc(collection(db, "Proposals", proposalId, "History"), {
+        proposalThread: proposalForHistory,
+        updatedAt: serverTimestamp(),
+        remarks: "Proposal updated",
+        version: version
+      });
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Error updating proposal:", error);
     return false;
   }
 };
@@ -224,5 +385,8 @@ export {
   getProposalsByUserId, 
   addProposal,
   getUserProposals,
-  updateProposalStatus
+  updateProposalStatus,
+  addProposalHistory,
+  updateProposal,
+  deleteField
 };

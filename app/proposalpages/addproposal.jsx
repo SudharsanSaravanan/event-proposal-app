@@ -119,7 +119,7 @@ export default function AddProposalContent() {
     setError("");
     setSuccess("");
     setIsSubmitting(true);
-
+  
     try {
       // Ensure user is authenticated
       if (!user) {
@@ -127,28 +127,24 @@ export default function AddProposalContent() {
         setIsSubmitting(false);
         return;
       }
-
-      // Generate a unique ID for the proposal
-      const proposalId = `proposal_${Date.now()}`;
-
+  
       // Prepare the proposal data
       const proposalData = {
         ...values,
-        id: proposalId,
         proposerId: user.uid,
         proposerEmail: user.email,
         proposerName: user.displayName || user.email,
         status: "Pending", // Initial status for new proposals
-        createdAt: new Date().toISOString(),
+        version: 1 // Set initial version
       };
-
+  
       // If this is an individual event, remove group details
       if (values.isIndividual) {
         delete proposalData.groupDetails;
       }
-
+  
       // Submit to Firestore
-      await addProposal(proposalData);
+      const proposalId = await addProposal(proposalData);
       
       console.log("Proposal submitted successfully with ID:", proposalId);
       setSuccess("Proposal submitted successfully!");
@@ -402,43 +398,43 @@ export default function AddProposalContent() {
               <h2 className="text-xl font-semibold mb-4 text-blue-400">Registration and Participation</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="registrationFee"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-white">Registration Fee (₹) *</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
-                          {...field}
-                          onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage className="text-red-400" />
-                    </FormItem>
-                  )}
-                />
+              <FormField
+                control={form.control}
+                name="registrationFee"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-white">Registration Fee (₹) *</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        {...field}
+                        onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormMessage className="text-red-400" />
+                  </FormItem>
+                )}
+              />
                 
                 <FormField
-                  control={form.control}
-                  name="maxSeats"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-white">Maximum Seats *</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
-                          {...field}
-                          onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage className="text-red-400" />
-                    </FormItem>
-                  )}
-                />
+                    control={form.control}
+                    name="maxSeats"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-white">Maximum Seats *</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                            {...field}
+                            onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage className="text-red-400" />
+                      </FormItem>
+                    )}
+                  />
               </div>
               
               <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
