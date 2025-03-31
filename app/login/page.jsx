@@ -91,7 +91,7 @@ const SignIn = () => {
             <Input
               type="email"
               id="email"
-              placeholder="Enter your Amrita Email Address"
+              placeholder="Enter your Email Address"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="bg-gray-800 border-gray-600 text-white"
