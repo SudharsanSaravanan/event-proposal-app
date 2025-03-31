@@ -5,7 +5,7 @@ import { getUserProposals } from "../firebase/config";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { Edit2 } from "lucide-react";
 
-export default function ViewProposals() {
+export default function ViewProposalsContent({ onEditProposal }) {
   const [proposals, setProposals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -51,7 +51,9 @@ export default function ViewProposals() {
   }, [userId]);
 
   const handleEdit = (proposalId) => {
-    console.log(`Editing proposal with ID: ${proposalId}`);
+    if (onEditProposal) {
+      onEditProposal(proposalId);
+    }
   };
 
   if (loading) {
@@ -93,7 +95,10 @@ export default function ViewProposals() {
                 className="bg-gray-800 text-white rounded-lg shadow-md p-4 sm:p-6 border border-gray-700 transition hover:border-gray-600 hover:shadow-xl relative flex flex-col mb-2"
               >
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-3">
-                  <h2 className="text-xl font-semibold break-words max-w-full mb-2 sm:mb-0 sm:pr-10">{proposal.title}</h2>
+                  <h2 className="text-xl font-semibold break-words max-w-full mb-2 sm:mb-0 sm:pr-10">
+                    {proposal.title}
+                    <span className="ml-2 text-xs font-normal text-gray-400">v{proposal.version || 1}</span>
+                  </h2>
                   <button 
                     onClick={() => handleEdit(proposal.id)}
                     className="bg-blue-600 text-white px-4 py-1 rounded-md text-sm hover:bg-blue-700 transition w-full sm:w-auto sm:ml-2 flex items-center justify-center gap-2 group"
@@ -141,7 +146,7 @@ function getStatusColor(status) {
     case "approved": return "text-green-400";
     case "rejected": return "text-red-400";
     case "pending": return "text-yellow-400";
-    case "in review": return "text-blue-400";
+    case "reviewed": return "text-blue-400";
     default: return "text-gray-400";
   }
 }
