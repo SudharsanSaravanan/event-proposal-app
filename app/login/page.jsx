@@ -1,19 +1,19 @@
 "use client";
 import { useState } from "react";
 import { useSignInWithEmailAndPassword } from "react-firebase-hooks/auth";
-import { auth } from "@/app/firebase/config";
+import { auth, db } from "@/app/firebase/config";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PasswordInput } from "@/components/ui/password-input";
+import { doc, getDoc } from "firebase/firestore";
 
 const SignIn = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("user");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const [signInWithEmailAndPassword] = useSignInWithEmailAndPassword(auth);
   const router = useRouter();
 
@@ -24,15 +24,52 @@ const SignIn = () => {
     }
 
     try {
-      await signInWithEmailAndPassword(email, password);
-      sessionStorage.setItem("user", true);
-      sessionStorage.setItem("role", role);
+      setLoading(true);
+      const result = await signInWithEmailAndPassword(email, password);
+      
+      if (result && result.user) {
+        // Get user role from Firestore
+        const userRef = doc(db, "Auth", result.user.uid);
+        const userSnap = await getDoc(userRef);
+        
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          const userRole = userData.role;
+          
+          // Store user data in session storage
+          sessionStorage.setItem("user", true);
+          sessionStorage.setItem("name", userData.name || "");
+          sessionStorage.setItem("role", userRole);
+          
+          // Redirect based on role
+          switch (userRole) {
+            case "Admin":
+              router.push("/admin");
+              break;
+            case "Reviewer":
+              router.push("/reviewer");
+              break;
+            case "User":
+              router.push("/user");
+              break;
+            default:
+              router.push("/"); // Default home page
+          }
+        } else {
+          // User exists in Auth but not in Firestore
+          setError("User profile not found. Please contact support.");
+          console.error("User document not found in Firestore");
+        }
+      } else {
+        setError("Invalid email or password!");
+      }
+    } catch (e) {
+      setError("Login failed: " + (e.message || "Unknown error"));
+      console.error("Login error:", e);
+    } finally {
+      setLoading(false);
       setEmail("");
       setPassword("");
-      router.push("/");
-    } catch (e) {
-      setError("Invalid email or password!");
-      console.error(e);
     }
   };
 
@@ -72,20 +109,6 @@ const SignIn = () => {
             />
           </div>
           
-          <div className="mb-4">
-            <label htmlFor="role" className="text-white mb-2 block">Role</label>
-            <Select onValueChange={setRole} defaultValue="user">
-              <SelectTrigger id="role" className="w-full bg-gray-800 border-gray-600 text-white">
-                <SelectValue placeholder="Select Role" />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-700 border-gray-600 text-white">
-                <SelectItem value="user" className="hover:bg-gray-600">User</SelectItem>
-                <SelectItem value="reviewer" className="hover:bg-gray-600">Reviewer</SelectItem>
-                <SelectItem value="admin" className="hover:bg-gray-600">Admin</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
           <div className="my-3 text-right pr-1">
             <a className="text-green-500 cursor-pointer hover:underline" href="/reset">
               Forgot your Password?
@@ -95,9 +118,14 @@ const SignIn = () => {
           <Button 
             onClick={handleSignIn} 
             className="w-full bg-green-600 hover:bg-green-500 text-white font-medium py-2 mt-2"
+            disabled={loading}
           >
-            Login
+            {loading ? "Logging in..." : "Login"}
           </Button>
+          
+          <p className="text-gray-400 text-sm mt-4 text-center">
+            Don't have an account? <a href="/signup" className="text-green-500">Sign Up</a>
+          </p>
         </CardContent>
       </Card>
     </div>
