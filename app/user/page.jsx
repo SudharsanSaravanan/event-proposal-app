@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, FilePlus, LineChart, Menu, Edit, LogOut } from "lucide-react";
+import { FileText, FilePlus, Menu, Edit, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import DashboardContent from "../proposalpages/dashboard";
 import ViewProposalsContent from "../proposalpages/viewproposals";
@@ -23,6 +23,12 @@ export default function UserPage() {
     setActiveView("edit-proposal");
   };
 
+  // Function to handle switching to tracking mode with a specific proposal
+  const handleTrackProposal = (proposalId) => {
+    setSelectedProposalId(proposalId);
+    setActiveView("track-proposal");
+  };
+
   const handleLogout = () => {
     console.log("Logging out...");
     router.push("/");
@@ -35,17 +41,23 @@ export default function UserPage() {
   const renderContent = () => {
     switch (activeView) {
       case "view-proposals":
-        return <ViewProposalsContent onEditProposal={handleEditProposal} />;
+        return <ViewProposalsContent 
+          onEditProposal={handleEditProposal} 
+          onTrackProposal={handleTrackProposal}
+        />;
       case "add-proposal":
         return (
           <div className="h-full max-h-full overflow-y-auto">
             <AddProposalContent />
           </div>
         );
-      case "proposal-tracking":
+      case "track-proposal":
         return (
           <div className="h-full max-h-full overflow-y-auto">
-            <ProposalTrackingContent />
+            <ProposalTrackingContent 
+              proposalId={selectedProposalId} 
+              onBack={() => setActiveView("view-proposals")}
+            />
           </div>
         );
       case "edit-proposal":
@@ -109,18 +121,6 @@ export default function UserPage() {
             >
               <FilePlus size={18} className="flex-shrink-0" />
               {sidebarOpen && <span className="ml-3">Add Proposal</span>}
-            </button>
-
-            <button
-              onClick={() => setActiveView("proposal-tracking")}
-              className={`flex items-center w-full p-2 rounded-md ${
-                activeView === "proposal-tracking"
-                  ? "bg-gray-600 text-white"
-                  : "hover:bg-gray-600 text-gray-300"
-              } transition-colors`}
-            >
-              <LineChart size={18} className="flex-shrink-0" />
-              {sidebarOpen && <span className="ml-3">Proposal Tracking</span>}
             </button>
           </nav>
           
