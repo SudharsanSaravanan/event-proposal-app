@@ -28,6 +28,10 @@ export default function UserPage() {
     router.push("/");
   };
 
+  const handleNavigate = (view) => {
+    setActiveView(view);
+  };
+
   const renderContent = () => {
     switch (activeView) {
       case "view-proposals":
@@ -54,7 +58,7 @@ export default function UserPage() {
           </div>
         );
       default:
-        return <DashboardContent />;
+        return <DashboardContent onNavigate={handleNavigate} />;
     }
   };
 

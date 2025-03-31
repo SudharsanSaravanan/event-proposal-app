@@ -1,6 +1,6 @@
 "use client";
 
-export default function DashboardContent() {
+export default function DashboardContent({ onNavigate }) {
   return (
     <div className="h-screen overflow-y-auto bg-gray-900">
       <div className="max-w-4xl mx-auto p-6">
@@ -17,16 +17,32 @@ export default function DashboardContent() {
           </p>
         </div>
 
-        {/* Quick Actions */}
+        {/* Quick Actions - Enhanced UI */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-blue-900/30 p-6 rounded-lg border border-blue-700">
-            <h3 className="text-blue-300 text-lg font-medium mb-2">New Workshop Proposal</h3>
+          <div 
+            className="bg-blue-900/30 p-6 rounded-lg border border-blue-700 relative cursor-pointer hover:bg-blue-800 transition-all duration-300"
+            onClick={() => onNavigate && onNavigate("add-proposal")}
+          >
+            <div className="flex justify-between items-start">
+              <h3 className="text-blue-300 text-lg font-medium mb-2">New Workshop Proposal</h3>
+              <div className="bg-blue-700 rounded-full w-6 h-6 flex items-center justify-center">
+                <span className="text-white text-lg font-bold pl-0.2 pb-0.5">+</span>
+              </div>
+            </div>
             <p className="text-gray-300 text-sm">
               Submit a detailed proposal for technical workshops, training sessions, or hands-on learning experiences.
             </p>
           </div>
-          <div className="bg-purple-900/30 p-6 rounded-lg border border-purple-700">
-            <h3 className="text-purple-300 text-lg font-medium mb-2">New Event Proposal</h3>
+          <div 
+            className="bg-purple-900/30 p-6 rounded-lg border border-purple-700 relative cursor-pointer hover:bg-purple-800 transition-all duration-300"
+            onClick={() => onNavigate && onNavigate("add-proposal")}
+          >
+            <div className="flex justify-between items-start">
+              <h3 className="text-purple-300 text-lg font-medium mb-2">New Event Proposal</h3>
+              <div className="bg-purple-700 rounded-full w-6 h-6 flex items-center justify-center">
+                <span className="text-white text-lg font-bold pl-0.2 pb-0.5">+</span>
+              </div>
+            </div>
             <p className="text-gray-300 text-sm">
               Propose conferences, seminars, or networking events with clear objectives and engagement plans.
             </p>
@@ -34,21 +50,16 @@ export default function DashboardContent() {
         </div>
 
         {/* Stats Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div className="bg-gray-800 p-6 rounded-lg shadow-md">
-            <h3 className="text-gray-400 text-sm uppercase mb-2">Draft Proposals</h3>
-            <p className="text-white text-3xl font-bold">0</p>
-            <p className="text-gray-500 text-xs mt-2">Incomplete submissions</p>
-          </div>
-          <div className="bg-gray-800 p-6 rounded-lg shadow-md">
-            <h3 className="text-gray-400 text-sm uppercase mb-2">Under Review</h3>
+            <h3 className="text-gray-400 text-sm uppercase mb-2">Proposals in Pending Status</h3>
             <p className="text-yellow-400 text-3xl font-bold">0</p>
-            <p className="text-gray-500 text-xs mt-2">Being evaluated</p>
+            <p className="text-gray-500 text-xs mt-2">Awaiting review by the committee</p>
           </div>
           <div className="bg-gray-800 p-6 rounded-lg shadow-md">
-            <h3 className="text-gray-400 text-sm uppercase mb-2">Approved</h3>
+            <h3 className="text-gray-400 text-sm uppercase mb-2">Proposals in Reviewed Status</h3>
             <p className="text-green-400 text-3xl font-bold">0</p>
-            <p className="text-gray-500 text-xs mt-2">Ready for scheduling</p>
+            <p className="text-gray-500 text-xs mt-2">Evaluation completed</p>
           </div>
         </div>
 
