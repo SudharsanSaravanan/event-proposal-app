@@ -55,19 +55,9 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
     setVersionsLoading(prev => ({ ...prev, [proposalId]: true }));
     
     try {
-      const currentProposal = proposals.find(p => p.id === proposalId);
-      if (!currentProposal) return;
-      
-      const loadedCount = loadedVersions[proposalId] || 1;
-      
-      if (loadedCount >= currentProposal.versionDetails.length) {
-        setVersionsLoading(prev => ({ ...prev, [proposalId]: false }));
-        return;
-      }
-      
       setLoadedVersions(prev => ({
         ...prev,
-        [proposalId]: loadedCount + 1
+        [proposalId]: (prev[proposalId] || 1) + 1
       }));
     } catch (error) {
       console.error("Error loading more versions:", error);
@@ -128,13 +118,13 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
               version: historyData.version || "1",
               timestamp: historyData.updatedAt,
               updatedBy: historyData.updatedBy || "System",
-              status: "Reviewed", // Mark all previous versions as Reviewed
+              status: "Reviewed",
               remarks: historyData.remarks || "Proposal updated",
               comments: historyData.comments || []
             });
             
             proposalThread.push({
-              status: "Reviewed", // Mark all previous versions as Reviewed
+              status: "Reviewed",
               timestamp: historyData.updatedAt,
               updatedBy: historyData.updatedBy || "System",
               remarks: historyData.remarks || "Proposal updated",
@@ -143,15 +133,15 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
             });
           });
 
-          // Add current version as the first item
+          // Add current version as the first item - preserving original status
           versionDetails.unshift({
             ...proposalData,
             version: proposalData.version || "1",
             timestamp: proposalData.updatedAt || proposalData.createdAt,
             updatedBy: proposalData.updatedBy || "You",
-            status: proposalData.status || "Current",
+            status: proposalData.status, // Keep original status from DB
             remarks: "Current version",
-            comments: []
+            comments: proposalData.comments || []
           });
 
           proposalData.versionDetails = versionDetails;
@@ -189,13 +179,13 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                 version: historyData.version || "1",
                 timestamp: historyData.updatedAt,
                 updatedBy: historyData.updatedBy || "System",
-                status: "Reviewed", // Mark all previous versions as Reviewed
+                status: "Reviewed",
                 remarks: historyData.remarks || "Proposal updated",
                 comments: historyData.comments || []
               });
               
               proposalThread.push({
-                status: "Reviewed", // Mark all previous versions as Reviewed
+                status: "Reviewed",
                 timestamp: historyData.updatedAt,
                 updatedBy: historyData.updatedBy || "System",
                 remarks: historyData.remarks || "Proposal updated",
@@ -204,15 +194,15 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
               });
             });
 
-            // Add current version as the first item
+            // Add current version as the first item - preserving original status
             versionDetails.unshift({
               ...proposalData,
               version: proposalData.version || "1",
               timestamp: proposalData.updatedAt || proposalData.createdAt,
               updatedBy: proposalData.updatedBy || "You",
-              status: proposalData.status || "Current",
+              status: proposalData.status, // Keep original status from DB
               remarks: "Current version",
-              comments: []
+              comments: proposalData.comments || []
             });
 
             proposalData.versionDetails = versionDetails;
@@ -331,7 +321,11 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
       );
     }
 
-    const versionsToDisplay = proposal.versionDetails.slice(0, loadedVersions[proposal.id] || 1);
+    // Always show current version first, then loaded historical versions
+    const versionsToDisplay = [
+      proposal.versionDetails[0], // Current version always first
+      ...proposal.versionDetails.slice(1, (loadedVersions[proposal.id] || 1)) // Loaded historical versions
+    ];
 
     return (
       <div className="space-y-8">
@@ -633,6 +627,7 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
           </div>
         ))}
         
+        {/* Only show load more if there are more historical versions to load */}
         {proposal.versionDetails.length > (loadedVersions[proposal.id] || 1) && (
           <div className="text-center mt-4">
             <button
