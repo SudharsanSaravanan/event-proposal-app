@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, FilePlus, LineChart, Menu, Edit } from "lucide-react";
+import { FileText, FilePlus, LineChart, Menu, Edit, LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
 import DashboardContent from "../proposalpages/dashboard";
 import ViewProposalsContent from "../proposalpages/viewproposals";
 import AddProposalContent from "../proposalpages/addproposal";
@@ -12,6 +13,7 @@ export default function UserPage() {
   const [activeView, setActiveView] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [selectedProposalId, setSelectedProposalId] = useState(null);
+  const router = useRouter();
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
@@ -19,6 +21,11 @@ export default function UserPage() {
   const handleEditProposal = (proposalId) => {
     setSelectedProposalId(proposalId);
     setActiveView("edit-proposal");
+  };
+
+  const handleLogout = () => {
+    console.log("Logging out...");
+    router.push("/");
   };
 
   const renderContent = () => {
@@ -74,7 +81,7 @@ export default function UserPage() {
           </button>
         </div>
 
-        <div className="flex-1">
+        <div className="flex-1 flex flex-col justify-between">
           <nav className="p-4 space-y-1">
             <button
               onClick={() => setActiveView("view-proposals")}
@@ -112,6 +119,17 @@ export default function UserPage() {
               {sidebarOpen && <span className="ml-3">Proposal Tracking</span>}
             </button>
           </nav>
+          
+          {/* Logout button at the bottom */}
+          <div className="p-4 border-t border-gray-700">
+            <button
+              onClick={handleLogout}
+              className="flex items-center w-full p-2 rounded-md hover:bg-gray-600 text-red-500 transition-colors"
+            >
+              <LogOut size={18} className="flex-shrink-0 text-red-500" />
+              {sidebarOpen && <span className="ml-3">Logout</span>}
+            </button>
+          </div>
         </div>
       </div>
 
