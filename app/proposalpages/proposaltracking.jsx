@@ -296,19 +296,19 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
   const getStatusBadge = (status) => {
     switch (status?.toLowerCase()) {
       case "approved":
-        return <span className="px-2 py-1 bg-green-600 text-white text-xs rounded-full">Approved</span>;
+        return <span className="px-2 py-1 bg-green-600 text-white text-xs rounded-full whitespace-nowrap">Approved</span>;
       case "rejected":
-        return <span className="px-2 py-1 bg-red-600 text-white text-xs rounded-full">Rejected</span>;
+        return <span className="px-2 py-1 bg-red-600 text-white text-xs rounded-full whitespace-nowrap">Rejected</span>;
       case "under review":
-        return <span className="px-2 py-1 bg-blue-600 text-white text-xs rounded-full">Under Review</span>;
+        return <span className="px-2 py-1 bg-blue-600 text-white text-xs rounded-full whitespace-nowrap">Under Review</span>;
       case "requested changes":
-        return <span className="px-2 py-1 bg-orange-600 text-white text-xs rounded-full">Changes Requested</span>;
+        return <span className="px-2 py-1 bg-orange-600 text-white text-xs rounded-full whitespace-nowrap">Changes Requested</span>;
       case "reviewed":
-        return <span className="px-2 py-1 bg-blue-400 text-white text-xs rounded-full">Reviewed</span>;
+        return <span className="px-2 py-1 bg-blue-400 text-white text-xs rounded-full whitespace-nowrap">Reviewed</span>;
       case "created":
-        return <span className="px-2 py-1 bg-blue-400 text-white text-xs rounded-full">Created</span>;
+        return <span className="px-2 py-1 bg-blue-400 text-white text-xs rounded-full whitespace-nowrap">Created</span>;
       default:
-        return <span className="px-2 py-1 bg-yellow-600 text-white text-xs rounded-full">Pending Review</span>;
+        return <span className="px-2 py-1 bg-yellow-600 text-white text-xs rounded-full whitespace-nowrap">Pending Review</span>;
     }
   };
 
@@ -336,9 +336,9 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                 Version {version.version}
                 {index === 0 && <span className="text-xs font-normal text-blue-400">(Latest)</span>}
               </h3>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 space-y-1 sm:space-y-0">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 gap-1">
                 {getStatusBadge(version.status)}
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-gray-400 whitespace-nowrap">
                   {formatTimestamp(version.timestamp)}
                 </span>
               </div>
@@ -348,7 +348,7 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
               <div className="space-y-4">
                 <div className="mb-4">
                   <h4 className="text-sm font-medium text-gray-300 mb-2">Update Remarks:</h4>
-                  <p className="text-sm text-gray-400 bg-gray-700 p-3 rounded">
+                  <p className="text-sm text-gray-400 bg-gray-700 p-3 rounded break-words">
                     {version.remarks || "No remarks provided"}
                   </p>
                 </div>
@@ -359,25 +359,25 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                   <div className="space-y-3">
                     <div>
                       <h5 className="text-xs font-medium text-gray-400">Title:</h5>
-                      <p className="text-sm text-gray-300">{version.title || "No title"}</p>
+                      <p className="text-sm text-gray-300 break-words">{version.title || "No title"}</p>
                     </div>
                     
                     <div>
                       <h5 className="text-xs font-medium text-gray-400">Description:</h5>
-                      <p className="text-sm text-gray-300">{version.description || "No description provided"}</p>
+                      <p className="text-sm text-gray-300 break-words">{version.description || "No description provided"}</p>
                     </div>
                     
                     {version.objectives && (
                       <div>
                         <h5 className="text-xs font-medium text-gray-400">Objectives:</h5>
                         {Array.isArray(version.objectives) ? (
-                          <ul className="list-disc pl-5 text-sm text-gray-300">
+                          <ul className="list-disc pl-5 text-sm text-gray-300 space-y-1">
                             {version.objectives.map((obj, idx) => (
-                              <li key={idx}>{obj}</li>
+                              <li key={idx} className="break-words">{obj}</li>
                             ))}
                           </ul>
                         ) : (
-                          <p className="text-sm text-gray-300">{version.objectives}</p>
+                          <p className="text-sm text-gray-300 break-words">{version.objectives}</p>
                         )}
                       </div>
                     )}
@@ -386,13 +386,13 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                       <div>
                         <h5 className="text-xs font-medium text-gray-400">Expected Outcomes:</h5>
                         {Array.isArray(version.outcomes) ? (
-                          <ul className="list-disc pl-5 text-sm text-gray-300">
+                          <ul className="list-disc pl-5 text-sm text-gray-300 space-y-1">
                             {version.outcomes.map((outcome, idx) => (
-                              <li key={idx}>{outcome}</li>
+                              <li key={idx} className="break-words">{outcome}</li>
                             ))}
                           </ul>
                         ) : (
-                          <p className="text-sm text-gray-300">{version.outcomes}</p>
+                          <p className="text-sm text-gray-300 break-words">{version.outcomes}</p>
                         )}
                       </div>
                     )}
@@ -400,7 +400,7 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                     {version.participantEngagement && (
                       <div>
                         <h5 className="text-xs font-medium text-gray-400">Participant Engagement:</h5>
-                        <p className="text-sm text-gray-300">{version.participantEngagement}</p>
+                        <p className="text-sm text-gray-300 break-words">{version.participantEngagement}</p>
                       </div>
                     )}
                   </div>
@@ -416,7 +416,7 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                         <h5 className="text-xs font-medium text-gray-400 flex items-center gap-1">
                           <Target size={14} /> Target Audience
                         </h5>
-                        <p className="text-sm text-gray-300">{version.targetAudience}</p>
+                        <p className="text-sm text-gray-300 break-words">{version.targetAudience}</p>
                       </div>
                     )}
                     
@@ -428,19 +428,19 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                         </h5>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-1">
                           {version.preferredDays.day1 && (
-                            <div className="bg-gray-600 p-2 rounded">
+                            <div className="bg-gray-600 p-2 rounded break-words">
                               <span className="text-xs text-gray-300">Day 1:</span>
                               <p className="text-sm text-white">{version.preferredDays.day1}</p>
                             </div>
                           )}
                           {version.preferredDays.day2 && (
-                            <div className="bg-gray-600 p-2 rounded">
+                            <div className="bg-gray-600 p-2 rounded break-words">
                               <span className="text-xs text-gray-300">Day 2:</span>
                               <p className="text-sm text-white">{version.preferredDays.day2}</p>
                             </div>
                           )}
                           {version.preferredDays.day3 && (
-                            <div className="bg-gray-600 p-2 rounded">
+                            <div className="bg-gray-600 p-2 rounded break-words">
                               <span className="text-xs text-gray-300">Day 3:</span>
                               <p className="text-sm text-white">{version.preferredDays.day3}</p>
                             </div>
@@ -458,11 +458,11 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                         <div className="grid grid-cols-2 gap-2 mt-2">
                           <div>
                             <span className="text-xs text-gray-400">Max Members:</span>
-                            <p className="text-sm text-white">{version.groupDetails.maxGroupMembers}</p>
+                            <p className="text-sm text-white break-words">{version.groupDetails.maxGroupMembers}</p>
                           </div>
                           <div>
                             <span className="text-xs text-gray-400">Fee Type:</span>
-                            <p className="text-sm text-white capitalize">{version.groupDetails.feeType}</p>
+                            <p className="text-sm text-white capitalize break-words">{version.groupDetails.feeType}</p>
                           </div>
                         </div>
                       </div>
@@ -474,7 +474,7 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                         <h5 className="text-xs font-medium text-gray-400 flex items-center gap-1">
                           <Layers size={14} /> Additional Requirements
                         </h5>
-                        <p className="text-sm text-gray-300 mt-1">{version.additionalRequirements}</p>
+                        <p className="text-sm text-gray-300 mt-1 break-words">{version.additionalRequirements}</p>
                       </div>
                     )}
                     
@@ -482,7 +482,7 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                     {version.duration && (
                       <div>
                         <h5 className="text-xs font-medium text-gray-400">Duration:</h5>
-                        <p className="text-sm text-gray-300">{version.duration}</p>
+                        <p className="text-sm text-gray-300 break-words">{version.duration}</p>
                       </div>
                     )}
                     
@@ -490,7 +490,7 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                     {version.registrationFee !== undefined && (
                       <div>
                         <h5 className="text-xs font-medium text-gray-400">Registration Fee:</h5>
-                        <p className="text-sm text-gray-300">₹{version.registrationFee || "Free"}</p>
+                        <p className="text-sm text-gray-300 break-words">₹{version.registrationFee || "Free"}</p>
                       </div>
                     )}
                     
@@ -498,7 +498,7 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                     {version.maxSeats && (
                       <div>
                         <h5 className="text-xs font-medium text-gray-400">Maximum Seats:</h5>
-                        <p className="text-sm text-gray-300">{version.maxSeats}</p>
+                        <p className="text-sm text-gray-300 break-words">{version.maxSeats}</p>
                       </div>
                     )}
                     
@@ -506,7 +506,7 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                     {version.estimatedBudget && (
                       <div>
                         <h5 className="text-xs font-medium text-gray-400">Estimated Budget:</h5>
-                        <p className="text-sm text-gray-300">₹{version.estimatedBudget}</p>
+                        <p className="text-sm text-gray-300 break-words">₹{version.estimatedBudget}</p>
                       </div>
                     )}
                     
@@ -514,7 +514,7 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                     {version.potentialFundingSource && (
                       <div>
                         <h5 className="text-xs font-medium text-gray-400">Funding Source:</h5>
-                        <p className="text-sm text-gray-300">{version.potentialFundingSource}</p>
+                        <p className="text-sm text-gray-300 break-words">{version.potentialFundingSource}</p>
                       </div>
                     )}
                     
@@ -522,7 +522,7 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                     {version.resourcePersonDetails && (
                       <div>
                         <h5 className="text-xs font-medium text-gray-400">Resource Person:</h5>
-                        <p className="text-sm text-gray-300">{version.resourcePersonDetails}</p>
+                        <p className="text-sm text-gray-300 break-words">{version.resourcePersonDetails}</p>
                       </div>
                     )}
                     
@@ -530,7 +530,7 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                     {version.externalResources && (
                       <div>
                         <h5 className="text-xs font-medium text-gray-400">External Resources:</h5>
-                        <p className="text-sm text-gray-300">{version.externalResources}</p>
+                        <p className="text-sm text-gray-300 break-words">{version.externalResources}</p>
                       </div>
                     )}
                     
@@ -539,18 +539,18 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                       <h5 className="text-xs font-medium text-gray-400">Type:</h5>
                       <div className="flex flex-wrap gap-2 mt-1">
                         {version.isEvent && (
-                          <span className="px-2 py-0.5 bg-gray-600 text-gray-300 text-xs rounded-full">Event</span>
+                          <span className="px-2 py-0.5 bg-gray-600 text-gray-300 text-xs rounded-full whitespace-nowrap">Event</span>
                         )}
                         {version.isTechnical && (
-                          <span className="px-2 py-0.5 bg-gray-600 text-gray-300 text-xs rounded-full">Technical</span>
+                          <span className="px-2 py-0.5 bg-gray-600 text-gray-300 text-xs rounded-full whitespace-nowrap">Technical</span>
                         )}
                         {!version.isEvent && !version.isTechnical && (
-                          <span className="text-sm text-gray-300">Standard</span>
+                          <span className="text-sm text-gray-300 whitespace-nowrap">Standard</span>
                         )}
                         {version.isIndividual ? (
-                          <span className="px-2 py-0.5 bg-gray-600 text-gray-300 text-xs rounded-full">Individual</span>
+                          <span className="px-2 py-0.5 bg-gray-600 text-gray-300 text-xs rounded-full whitespace-nowrap">Individual</span>
                         ) : (
-                          <span className="px-2 py-0.5 bg-gray-600 text-gray-300 text-xs rounded-full">Group</span>
+                          <span className="px-2 py-0.5 bg-gray-600 text-gray-300 text-xs rounded-full whitespace-nowrap">Group</span>
                         )}
                       </div>
                     </div>
@@ -569,26 +569,26 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                     {version.comments.map((comment, idx) => (
                       <div key={idx} className="bg-gray-800 p-3 rounded border-l-4 border-blue-500">
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-1 gap-1">
-                          <span className="text-xs font-medium text-blue-400">
+                          <span className="text-xs font-medium text-blue-400 break-words">
                             {comment.reviewerName || "Reviewer"}
                           </span>
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-gray-500 whitespace-nowrap">
                             {formatTimestamp(comment.timestamp)}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-300">
+                        <p className="text-sm text-gray-300 break-words">
                           {comment.text || "No comment text"}
                         </p>
                         {comment.suggestions && (
                           <div className="mt-2 pt-2 border-t border-gray-600">
                             <div className="text-xs font-medium text-gray-400 mb-1">Suggestions:</div>
-                            <ul className="text-sm text-gray-300 list-disc pl-5">
+                            <ul className="text-sm text-gray-300 list-disc pl-5 space-y-1">
                               {Array.isArray(comment.suggestions) ? (
                                 comment.suggestions.map((suggestion, sIdx) => (
-                                  <li key={sIdx}>{suggestion}</li>
+                                  <li key={sIdx} className="break-words">{suggestion}</li>
                                 ))
                               ) : (
-                                <li>{comment.suggestions}</li>
+                                <li className="break-words">{comment.suggestions}</li>
                               )}
                             </ul>
                           </div>
@@ -613,11 +613,11 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                   <div className="bg-gray-700 p-3 rounded">
                     <div className="flex items-center">
                       {getStatusIcon(version.status)}
-                      <span className="ml-2 text-sm text-gray-300 font-medium capitalize">
+                      <span className="ml-2 text-sm text-gray-300 font-medium capitalize break-words">
                         {version.status || "Unknown"}
                       </span>
                     </div>
-                    <div className="text-xs text-gray-400 mt-1">
+                    <div className="text-xs text-gray-400 mt-1 break-words">
                       Updated by: {version.updatedBy || "Unknown"} on {formatTimestamp(version.timestamp)}
                     </div>
                   </div>
@@ -662,7 +662,7 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
         {singleProposalView && (
           <button 
             onClick={handleBackToAll}
-            className="flex items-center text-blue-400 hover:text-blue-300 transition"
+            className="flex items-center text-blue-400 hover:text-blue-300 transition whitespace-nowrap"
           >
             <ArrowLeft size={16} className="mr-1" />
             Back to all proposals
@@ -716,7 +716,7 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
 
       {!singleProposalView && (
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2">
             <Filter size={18} className="text-gray-400" />
             <select
               value={filter}
@@ -751,29 +751,29 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                 className="p-4 cursor-pointer flex justify-between items-center"
                 onClick={() => toggleExpand(proposal.id)}
               >
-                <div className="flex items-center space-x-3 overflow-hidden">
+                <div className="flex items-center gap-3 overflow-hidden">
                   {getStatusIcon(proposal.status)}
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <h3 className="font-medium text-white truncate">{proposal.title || "Untitled Proposal"}</h3>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-400 mt-1">
-                      <span className="flex items-center">
+                      <span className="flex items-center whitespace-nowrap">
                         <Calendar size={12} className="mr-1" />
                         {formatTimestamp(proposal.createdAt)}
                       </span>
                       {proposal.duration && (
-                        <span className="flex items-center">
+                        <span className="flex items-center whitespace-nowrap">
                           <Clock size={12} className="mr-1" />
                           {proposal.duration}
                         </span>
                       )}
                       {proposal.maxSeats && (
-                        <span className="flex items-center">
+                        <span className="flex items-center whitespace-nowrap">
                           <Users size={12} className="mr-1" />
                           {proposal.maxSeats} seats
                         </span>
                       )}
                       {proposal.registrationFee !== undefined && (
-                        <span className="flex items-center">
+                        <span className="flex items-center whitespace-nowrap">
                           <DollarSign size={12} className="mr-1" />
                           ₹{proposal.registrationFee || "Free"}
                         </span>
@@ -782,7 +782,7 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                   </div>
                 </div>
                 
-                <div className="flex items-center space-x-3 ml-2">
+                <div className="flex items-center gap-3 ml-2">
                   <div className="hidden sm:block text-sm text-gray-300">
                     {getStatusBadge(proposal.status)}
                   </div>
