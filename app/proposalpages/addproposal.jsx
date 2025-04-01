@@ -21,7 +21,7 @@ import { Loader2 } from "lucide-react";
 import { 
   auth, 
   addProposal
-} from "../firebase/config"; // Update this path to match your project structure
+} from "../firebase/config";
 
 // Proposal form validation schema
 const formSchema = z.object({
@@ -143,7 +143,7 @@ export default function AddProposalContent() {
         delete proposalData.groupDetails;
       }
   
-      // Submit to Firestore
+      // Submit to Firestore (without creating history entry)
       const proposalId = await addProposal(proposalData);
       
       console.log("Proposal submitted successfully with ID:", proposalId);
@@ -398,43 +398,43 @@ export default function AddProposalContent() {
               <h2 className="text-xl font-semibold mb-4 text-blue-400">Registration and Participation</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                control={form.control}
-                name="registrationFee"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-white">Registration Fee (₹) *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
-                        {...field}
-                        onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage className="text-red-400" />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={form.control}
+                  name="registrationFee"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white">Registration Fee (₹) *</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                          {...field}
+                          onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage className="text-red-400" />
+                    </FormItem>
+                  )}
+                />
                 
                 <FormField
-                    control={form.control}
-                    name="maxSeats"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-white">Maximum Seats *</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
-                            {...field}
-                            onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))}
-                          />
-                        </FormControl>
-                        <FormMessage className="text-red-400" />
-                      </FormItem>
-                    )}
-                  />
+                  control={form.control}
+                  name="maxSeats"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white">Maximum Seats *</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                          {...field}
+                          onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage className="text-red-400" />
+                    </FormItem>
+                  )}
+                />
               </div>
               
               <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">

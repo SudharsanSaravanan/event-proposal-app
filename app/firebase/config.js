@@ -94,21 +94,6 @@ const addProposal = async (proposalData) => {
       updatedAt: serverTimestamp(),
     });
     
-    // Create a copy for history without status and version
-    const proposalForHistory = { ...dataToStore };
-    delete proposalForHistory.status; // Remove status from history
-    delete proposalForHistory.version; // Remove version from history
-    
-    const historyData = {
-      proposalThread: proposalForHistory,
-      updatedAt: serverTimestamp(),
-      remarks: "Proposal created",
-      version: 1
-    };
-    
-    // Add to history collection
-    await addDoc(collection(db, "Proposals", docRef.id, "History"), historyData);
-    
     return docRef.id; // Return the Firestore-generated ID
   } catch (error) {
     console.error("Error adding proposal:", error);

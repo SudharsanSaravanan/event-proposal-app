@@ -7,17 +7,18 @@ import {
   getDoc, 
   updateDoc, 
   collection, 
-  addDoc, 
+  addDoc,
   query,
-  where,
   getDocs,
   serverTimestamp,
-  deleteField 
+  orderBy
 } from "firebase/firestore";
 import { AlertCircle } from "lucide-react";
 import { db } from "../firebase/config";
+import { useRouter } from "next/navigation";
 
 export default function EditProposalContent({ proposalId, onBack }) {
+  const router = useRouter();
   const [proposal, setProposal] = useState({
     title: "",
     description: "",
@@ -25,7 +26,7 @@ export default function EditProposalContent({ proposalId, onBack }) {
     outcomes: "",
     participantEngagement: "",
     duration: "",
-    registrationFee: "", // Changed from 0 to empty string
+    registrationFee: "",
     isIndividual: true,
     groupDetails: {
       maxGroupMembers: 4,
@@ -43,6 +44,9 @@ export default function EditProposalContent({ proposalId, onBack }) {
     potentialFundingSource: "",
     resourcePersonDetails: "",
     externalResources: "",
+    additionalRequirements: "nil",
+    targetAudience: "",
+    proposerEmail: "",
     status: "",
     version: 1,
     proposerId: "",
@@ -62,6 +66,11 @@ export default function EditProposalContent({ proposalId, onBack }) {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setUserId(user.uid);
+        setProposal(prev => ({
+          ...prev,
+          proposerEmail: user.email || "",
+          proposerId: user.uid
+        }));
         setError(null);
       } else {
         setUserId(null);
@@ -73,13 +82,14 @@ export default function EditProposalContent({ proposalId, onBack }) {
     return () => unsubscribe();
   }, []);
 
-  // Fetch the proposal data when the component mounts
+  // Fetch proposal data
   useEffect(() => {
     if (!userId || !proposalId) return;
 
-    const fetchProposal = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
+        
         const proposalRef = doc(db, "Proposals", proposalId);
         const proposalSnap = await getDoc(proposalRef);
         
@@ -91,14 +101,14 @@ export default function EditProposalContent({ proposalId, onBack }) {
         
         const proposalData = proposalSnap.data();
         
-        // Check if user is authorized to edit this proposal
+        // Check authorization
         if (proposalData.proposerId !== userId) {
           setError("You are not authorized to edit this proposal");
           setLoading(false);
           return;
         }
         
-        // Check if proposal status allows editing (only "Pending" and "Reviewed" are editable)
+        // Check if proposal status allows editing
         if (proposalData.status && 
             proposalData.status.toLowerCase() !== "pending" && 
             proposalData.status.toLowerCase() !== "reviewed") {
@@ -111,17 +121,21 @@ export default function EditProposalContent({ proposalId, onBack }) {
         setIsAuthorized(true);
         setProposal({
           ...proposalData,
-          id: proposalId
+          id: proposalId,
+          additionalRequirements: proposalData.additionalRequirements || "nil",
+          targetAudience: proposalData.targetAudience || "",
+          proposerEmail: proposalData.proposerEmail || ""
         });
+
         setLoading(false);
       } catch (err) {
-        console.error("Error fetching proposal:", err);
-        setError("Failed to load proposal. Please try again.");
+        console.error("Error fetching data:", err);
+        setError("Failed to load proposal data. Please try again.");
         setLoading(false);
       }
     };
 
-    fetchProposal();
+    fetchData();
   }, [userId, proposalId]);
 
   const handleChange = (e) => {
@@ -129,7 +143,7 @@ export default function EditProposalContent({ proposalId, onBack }) {
     
     if (name.includes(".")) {
       const [parent, child] = name.split(".");
-      setProposal((prev) => ({
+      setProposal(prev => ({
         ...prev,
         [parent]: {
           ...prev[parent],
@@ -137,7 +151,7 @@ export default function EditProposalContent({ proposalId, onBack }) {
         }
       }));
     } else {
-      setProposal((prev) => ({
+      setProposal(prev => ({
         ...prev,
         [name]: type === "checkbox" ? checked : value === "" ? value : 
                 type === "number" ? Number(value) : value
@@ -157,83 +171,96 @@ export default function EditProposalContent({ proposalId, onBack }) {
       setLoading(true);
       const proposalRef = doc(db, "Proposals", proposalId);
       
-      // Get the current status to determine if we should increment version
-      const currentStatus = proposal.status?.toLowerCase() || "pending";
-      let newStatus = currentStatus;
+      // Get current proposal data before making changes
+      const currentProposalSnap = await getDoc(proposalRef);
+      const currentProposalData = currentProposalSnap.data();
       
-      // If current status is "reviewed", change it back to "pending"
-      if (currentStatus === "reviewed") {
-        newStatus = "pending";
+      // Check if this is the first edit (version 1 with no history)
+      const historyQuery = query(
+        collection(db, "Proposals", proposalId, "History"),
+        orderBy("version", "desc")
+      );
+      const historySnapshot = await getDocs(historyQuery);
+      const isFirstEdit = currentProposalData.version === 1 && historySnapshot.empty;
+      
+      // Determine if we're creating a new version (only when status is "reviewed")
+      const isCreatingNewVersion = currentProposalData.status?.toLowerCase() === "reviewed";
+      
+      let newVersion = currentProposalData.version || 1;
+      
+      // If first edit or creating new version, archive current version
+      if (isFirstEdit || isCreatingNewVersion) {
+        if (isCreatingNewVersion) {
+          newVersion = currentProposalData.version + 1;
+        }
+        
+        // Archive the current version to history before updating
+        const historyData = {
+          proposalData: { 
+            title: currentProposalData.title,
+            description: currentProposalData.description,
+            objectives: currentProposalData.objectives,
+            outcomes: currentProposalData.outcomes,
+            participantEngagement: currentProposalData.participantEngagement,
+            duration: currentProposalData.duration,
+            registrationFee: currentProposalData.registrationFee,
+            isIndividual: currentProposalData.isIndividual,
+            groupDetails: currentProposalData.groupDetails,
+            maxSeats: currentProposalData.maxSeats,
+            isEvent: currentProposalData.isEvent,
+            isTechnical: currentProposalData.isTechnical,
+            preferredDays: currentProposalData.preferredDays,
+            estimatedBudget: currentProposalData.estimatedBudget,
+            potentialFundingSource: currentProposalData.potentialFundingSource,
+            resourcePersonDetails: currentProposalData.resourcePersonDetails,
+            externalResources: currentProposalData.externalResources,
+            additionalRequirements: currentProposalData.additionalRequirements || "nil",
+            targetAudience: currentProposalData.targetAudience || "",
+            proposerEmail: currentProposalData.proposerEmail || "",
+            proposerId: currentProposalData.proposerId,
+            createdAt: currentProposalData.createdAt
+          },
+          archivedAt: serverTimestamp(),
+          version: currentProposalData.version,
+          remarks: isFirstEdit 
+            ? "Initial version archived during first edit"
+            : `Version ${currentProposalData.version} archived when creating version ${newVersion}`,
+          archivedBy: userId
+        };
+        
+        const historyCollectionRef = collection(db, "Proposals", proposalId, "History");
+        await addDoc(historyCollectionRef, historyData);
       }
       
-      // Calculate the new version based on status
-      // Only increment version when current status is "reviewed"
-      let newVersion = proposal.version || 1;
-      if (currentStatus === "reviewed") {
-        newVersion = (proposal.version || 1) + 1;
-      }
-      
-      // Prepare updated proposal data with timestamp
+      // Prepare updated proposal data - always set status to pending after edit
       const updatedProposal = {
         ...proposal,
-        status: newStatus, // Set status to "pending" if it was "reviewed"
+        status: "pending",
+        version: newVersion,
         updatedAt: serverTimestamp(),
-        version: newVersion
+        createdAt: currentProposalData.createdAt || serverTimestamp(),
+        additionalRequirements: proposal.additionalRequirements || "nil",
+        targetAudience: proposal.targetAudience || "",
+        proposerEmail: proposal.proposerEmail || ""
       };
       
-      // Remove the id field before saving to Firestore
+      // Remove the id field before saving
       const { id, ...proposalWithoutId } = updatedProposal;
       
       // Update the proposal document
       await updateDoc(proposalRef, proposalWithoutId);
       
-      // Create a copy for history WITHOUT status and version properties
-      const proposalForHistory = { ...proposalWithoutId };
+      setSuccess(isCreatingNewVersion 
+        ? `New version ${newVersion} created successfully! Status set to pending.` 
+        : `Proposal updated successfully! Status set to pending.`);
       
-      // Instead of using deleteField(), just delete the properties
-      delete proposalForHistory.status;
-      delete proposalForHistory.version;
-      
-      // Check if history entry already exists for this version
-      const historyQuery = query(
-        collection(db, "Proposals", proposalId, "History"),
-        where("version", "==", newVersion)
-      );
-      const historySnapshot = await getDocs(historyQuery);
-      
-      if (!historySnapshot.empty) {
-        // Update existing history entry
-        const historyDoc = historySnapshot.docs[0];
-        await updateDoc(doc(db, "Proposals", proposalId, "History", historyDoc.id), {
-          proposalThread: proposalForHistory,
-          updatedAt: serverTimestamp(),
-          remarks: "Proposal updated"
-        });
-      } else {
-        // Create new history entry
-        const historyData = {
-          proposalThread: proposalForHistory,
-          updatedAt: serverTimestamp(),
-          remarks: "Proposal updated",
-          version: newVersion
-        };
-        
-        // Add to history collection
-        const historyCollectionRef = collection(db, "Proposals", proposalId, "History");
-        await addDoc(historyCollectionRef, historyData);
-      }
-      
-      setSuccess(`Proposal updated successfully! Version: ${newVersion}`);
-      setLoading(false);
-      
-      // Update the local state with the new version and status
+      // Update local state
       setProposal(prev => ({
         ...prev,
-        version: newVersion,
-        status: newStatus
+        ...updatedProposal
       }));
       
-      // Return to proposals list after short delay
+      // Redirect back after delay
       setTimeout(() => {
         if (onBack) onBack();
       }, 2000);
@@ -241,6 +268,7 @@ export default function EditProposalContent({ proposalId, onBack }) {
     } catch (err) {
       console.error("Error updating proposal:", err);
       setError("Failed to update proposal: " + err.message);
+    } finally {
       setLoading(false);
     }
   };
@@ -297,9 +325,14 @@ export default function EditProposalContent({ proposalId, onBack }) {
     <div className="pb-10">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-white">Edit Proposal</h1>
-        <span className={`px-3 py-1 ${getStatusColor(proposal.status)} text-white text-sm rounded-full`}>
-          {proposal.status || "Pending"}
-        </span>
+        <div className="flex items-center gap-4 pr-5">
+          <span className={`px-3 py-1 pb-1.5 ${getStatusColor(proposal.status)} text-white text-sm rounded-full`}>
+            {proposal.status || "Pending"}
+          </span>
+          <span className="px-3 py-1 pb-1.5 bg-gray-700 text-white text-sm rounded-full">
+            Version: {proposal.version || 1}
+          </span>
+        </div>
       </div>
       
       {success && (
@@ -307,9 +340,9 @@ export default function EditProposalContent({ proposalId, onBack }) {
           {success}
         </div>
       )}
-      
+
       <form onSubmit={handleSubmit} className="space-y-6 text-white">
-        {/* Basic Information */}
+        {/* Basic Information Section */}
         <div className="p-6 bg-gray-800 rounded-lg shadow-md">
           <h2 className="text-xl font-semibold mb-4 text-blue-400">Basic Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -350,9 +383,22 @@ export default function EditProposalContent({ proposalId, onBack }) {
               required
             ></textarea>
           </div>
+
+          <div className="mt-4">
+            <label className="block text-sm font-medium mb-1">Target Audience *</label>
+            <input
+              type="text"
+              name="targetAudience"
+              value={proposal.targetAudience || ""}
+              onChange={handleChange}
+              placeholder="Describe the target audience"
+              className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+              required
+            />
+          </div>
         </div>
         
-        {/* Resource Person Details */}
+        {/* Resource Person Details Section */}
         <div className="p-6 bg-gray-800 rounded-lg shadow-md">
           <h2 className="text-xl font-semibold mb-4 text-blue-400">Resource Person Information</h2>
           
@@ -387,7 +433,7 @@ export default function EditProposalContent({ proposalId, onBack }) {
           </div>
         </div>
         
-        {/* Objectives and Outcomes */}
+        {/* Objectives and Outcomes Section */}
         <div className="p-6 bg-gray-800 rounded-lg shadow-md">
           <h2 className="text-xl font-semibold mb-4 text-blue-400">Objectives and Outcomes</h2>
           
@@ -433,7 +479,7 @@ export default function EditProposalContent({ proposalId, onBack }) {
           </div>
         </div>
         
-        {/* Registration and Participation */}
+        {/* Registration and Participation Section */}
         <div className="p-6 bg-gray-800 rounded-lg shadow-md">
           <h2 className="text-xl font-semibold mb-4 text-blue-400">Registration and Participation</h2>
           
@@ -529,7 +575,7 @@ export default function EditProposalContent({ proposalId, onBack }) {
           )}
         </div>
         
-        {/* Type of Event */}
+        {/* Type of Event Section */}
         <div className="p-6 bg-gray-800 rounded-lg shadow-md">
           <h2 className="text-xl font-semibold mb-4 text-blue-400">Type of Event</h2>
           
@@ -587,113 +633,126 @@ export default function EditProposalContent({ proposalId, onBack }) {
             </div>
           </div>
         </div>
-        {/* Scheduling */}
-    <div className="p-6 bg-gray-800 rounded-lg shadow-md">
-      <h2 className="text-xl font-semibold mb-4 text-blue-400">Preferred Schedule</h2>
-      <p className="text-sm text-gray-400 mb-4">Please provide your preferred time slots for each day of the event</p>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div>
-          <label className="block text-sm font-medium mb-1">Day 1</label>
-          <input
-            type="text"
-            name="preferredDays.day1"
-            value={proposal.preferredDays?.day1 || ""}
-            onChange={handleChange}
-            placeholder="e.g. 10:00 AM - 1:00 PM"
-            className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
-          />
+        
+        {/* Scheduling Section */}
+        <div className="p-6 bg-gray-800 rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold mb-4 text-blue-400">Preferred Schedule</h2>
+          <p className="text-sm text-gray-400 mb-4">Please provide your preferred time slots for each day of the event</p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label className="block text-sm font-medium mb-1">Day 1</label>
+              <input
+                type="text"
+                name="preferredDays.day1"
+                value={proposal.preferredDays?.day1 || ""}
+                onChange={handleChange}
+                placeholder="e.g. 10:00 AM - 1:00 PM"
+                className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Day 2</label>
+              <input
+                type="text"
+                name="preferredDays.day2"
+                value={proposal.preferredDays?.day2 || ""}
+                onChange={handleChange}
+                placeholder="e.g. 2:00 PM - 5:00 PM"
+                className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Day 3</label>
+              <input
+                type="text"
+                name="preferredDays.day3"
+                value={proposal.preferredDays?.day3 || ""}
+                onChange={handleChange}
+                placeholder="e.g. 11:00 AM - 2:00 PM"
+                className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+              />
+            </div>
+          </div>
+          <p className="text-sm text-gray-400 mt-2">At least one preferred time slot is required</p>
         </div>
         
-        <div>
-          <label className="block text-sm font-medium mb-1">Day 2</label>
-          <input
-            type="text"
-            name="preferredDays.day2"
-            value={proposal.preferredDays?.day2 || ""}
-            onChange={handleChange}
-            placeholder="e.g. 2:00 PM - 5:00 PM"
-            className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
-          />
+        {/* Budget Section */}
+        <div className="p-6 bg-gray-800 rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold mb-4 text-blue-400">Budget and Funding</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium mb-1">Estimated Budget (₹) *</label>
+              <input
+                type="number"
+                name="estimatedBudget"
+                value={proposal.estimatedBudget || ""}
+                onChange={handleChange}
+                min="0"
+                className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Potential Funding Source *</label>
+              <input
+                type="text"
+                name="potentialFundingSource"
+                value={proposal.potentialFundingSource || ""}
+                onChange={handleChange}
+                placeholder="e.g. Tech Sponsors, Department"
+                className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                required
+              />
+            </div>
+          </div>
+          
+          <div className="mt-4">
+            <label className="block text-sm font-medium mb-1">Additional Requirements</label>
+            <textarea
+              name="additionalRequirements"
+              value={proposal.additionalRequirements || "nil"}
+              onChange={handleChange}
+              rows="3"
+              placeholder="Enter any additional requirements"
+              className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+            ></textarea>
+          </div>
         </div>
         
-        <div>
-          <label className="block text-sm font-medium mb-1">Day 3</label>
-          <input
-            type="text"
-            name="preferredDays.day3"
-            value={proposal.preferredDays?.day3 || ""}
-            onChange={handleChange}
-            placeholder="e.g. 11:00 AM - 2:00 PM"
-            className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
-          />
+        {/* Action Buttons */}
+        <div className="flex justify-end space-x-4 pr-5">
+          <button
+            type="button"
+            className="px-6 py-3 bg-gray-600 hover:bg-gray-700 rounded-md font-medium transition-colors"
+            onClick={onBack}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-md font-medium transition-colors"
+            disabled={loading}
+          >
+            {loading ? "Updating..." : "Update Proposal"}
+          </button>
         </div>
-      </div>
-      <p className="text-sm text-gray-400 mt-2">At least one preferred time slot is required</p>
+      </form>
     </div>
-    
-    {/* Budget */}
-    <div className="p-6 bg-gray-800 rounded-lg shadow-md">
-      <h2 className="text-xl font-semibold mb-4 text-blue-400">Budget and Funding</h2>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium mb-1">Estimated Budget (₹) *</label>
-          <input
-            type="number"
-            name="estimatedBudget"
-            value={proposal.estimatedBudget || ""}
-            onChange={handleChange}
-            min="0"
-            className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
-            required
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium mb-1">Potential Funding Source *</label>
-          <input
-            type="text"
-            name="potentialFundingSource"
-            value={proposal.potentialFundingSource || ""}
-            onChange={handleChange}
-            placeholder="e.g. Tech Sponsors, Department"
-            className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
-            required
-          />
-        </div>
-      </div>
-    </div>
-    
-    {/* Action Buttons */}
-    <div className="flex justify-end space-x-4 pr-5">
-      <button
-        type="button"
-        className="px-6 py-3 bg-gray-600 hover:bg-gray-700 rounded-md font-medium transition-colors"
-        onClick={onBack}
-      >
-        Cancel
-      </button>
-      <button
-        type="submit"
-        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-md font-medium transition-colors"
-        disabled={loading}
-      >
-        {loading ? "Updating..." : "Update Proposal"}
-      </button>
-    </div>
-  </form>
-</div>
-);
+  );
 }
 
 function getStatusColor(status) {
-if (!status) return "bg-yellow-600";
-switch (status.toLowerCase()) {
-case "approved": return "bg-green-600";
-case "rejected": return "bg-red-600";
-case "pending": return "bg-yellow-600";
-case "reviewed": return "bg-blue-600";
-default: return "bg-gray-600";
-}
+  if (!status) return "bg-yellow-600";
+  switch (status.toLowerCase()) {
+    case "approved": return "bg-green-600";
+    case "rejected": return "bg-red-600";
+    case "pending": return "bg-yellow-600";
+    case "reviewed": return "bg-blue-600";
+    default: return "bg-gray-600";
+  }
 }
