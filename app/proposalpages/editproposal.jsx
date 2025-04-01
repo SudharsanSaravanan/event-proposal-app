@@ -99,20 +99,20 @@ export default function EditProposalContent({ proposalId, onBack }) {
           return;
         }
         
-        const proposalData = proposalSnap.data();
+        const proposalThread = proposalSnap.data();
         
         // Check authorization
-        if (proposalData.proposerId !== userId) {
+        if (proposalThread.proposerId !== userId) {
           setError("You are not authorized to edit this proposal");
           setLoading(false);
           return;
         }
         
         // Check if proposal status allows editing
-        if (proposalData.status && 
-            proposalData.status.toLowerCase() !== "pending" && 
-            proposalData.status.toLowerCase() !== "reviewed") {
-          setError(`This proposal cannot be edited because it's in ${proposalData.status} status`);
+        if (proposalThread.status && 
+            proposalThread.status.toLowerCase() !== "pending" && 
+            proposalThread.status.toLowerCase() !== "reviewed") {
+          setError(`This proposal cannot be edited because it's in ${proposalThread.status} status`);
           setIsAuthorized(false);
           setLoading(false);
           return;
@@ -120,11 +120,11 @@ export default function EditProposalContent({ proposalId, onBack }) {
         
         setIsAuthorized(true);
         setProposal({
-          ...proposalData,
+          ...proposalThread,
           id: proposalId,
-          additionalRequirements: proposalData.additionalRequirements || "nil",
-          targetAudience: proposalData.targetAudience || "",
-          proposerEmail: proposalData.proposerEmail || ""
+          additionalRequirements: proposalThread.additionalRequirements || "nil",
+          targetAudience: proposalThread.targetAudience || "",
+          proposerEmail: proposalThread.proposerEmail || ""
         });
 
         setLoading(false);
@@ -173,7 +173,7 @@ export default function EditProposalContent({ proposalId, onBack }) {
       
       // Get current proposal data before making changes
       const currentProposalSnap = await getDoc(proposalRef);
-      const currentProposalData = currentProposalSnap.data();
+      const currentproposalThread = currentProposalSnap.data();
       
       // Check if this is the first edit (version 1 with no history)
       const historyQuery = query(
@@ -181,50 +181,50 @@ export default function EditProposalContent({ proposalId, onBack }) {
         orderBy("version", "desc")
       );
       const historySnapshot = await getDocs(historyQuery);
-      const isFirstEdit = currentProposalData.version === 1 && historySnapshot.empty;
+      const isFirstEdit = currentproposalThread.version === 1 && historySnapshot.empty && (currentproposalThread.status === "reviewed" || currentproposalThread.status === "Reviewed");
       
       // Determine if we're creating a new version (only when status is "reviewed")
-      const isCreatingNewVersion = currentProposalData.status?.toLowerCase() === "reviewed";
+      const isCreatingNewVersion = currentproposalThread.status?.toLowerCase() === "reviewed";
       
-      let newVersion = currentProposalData.version || 1;
+      let newVersion = currentproposalThread.version || 1;
       
       // If first edit or creating new version, archive current version
       if (isFirstEdit || isCreatingNewVersion) {
         if (isCreatingNewVersion) {
-          newVersion = currentProposalData.version + 1;
+          newVersion = currentproposalThread.version + 1;
         }
         
         // Archive the current version to history before updating
         const historyData = {
-          proposalData: { 
-            title: currentProposalData.title,
-            description: currentProposalData.description,
-            objectives: currentProposalData.objectives,
-            outcomes: currentProposalData.outcomes,
-            participantEngagement: currentProposalData.participantEngagement,
-            duration: currentProposalData.duration,
-            registrationFee: currentProposalData.registrationFee,
-            isIndividual: currentProposalData.isIndividual,
-            groupDetails: currentProposalData.groupDetails,
-            maxSeats: currentProposalData.maxSeats,
-            isEvent: currentProposalData.isEvent,
-            isTechnical: currentProposalData.isTechnical,
-            preferredDays: currentProposalData.preferredDays,
-            estimatedBudget: currentProposalData.estimatedBudget,
-            potentialFundingSource: currentProposalData.potentialFundingSource,
-            resourcePersonDetails: currentProposalData.resourcePersonDetails,
-            externalResources: currentProposalData.externalResources,
-            additionalRequirements: currentProposalData.additionalRequirements || "nil",
-            targetAudience: currentProposalData.targetAudience || "",
-            proposerEmail: currentProposalData.proposerEmail || "",
-            proposerId: currentProposalData.proposerId,
-            createdAt: currentProposalData.createdAt
+          proposalThread: { 
+            title: currentproposalThread.title,
+            description: currentproposalThread.description,
+            objectives: currentproposalThread.objectives,
+            outcomes: currentproposalThread.outcomes,
+            participantEngagement: currentproposalThread.participantEngagement,
+            duration: currentproposalThread.duration,
+            registrationFee: currentproposalThread.registrationFee,
+            isIndividual: currentproposalThread.isIndividual,
+            groupDetails: currentproposalThread.groupDetails,
+            maxSeats: currentproposalThread.maxSeats,
+            isEvent: currentproposalThread.isEvent,
+            isTechnical: currentproposalThread.isTechnical,
+            preferredDays: currentproposalThread.preferredDays,
+            estimatedBudget: currentproposalThread.estimatedBudget,
+            potentialFundingSource: currentproposalThread.potentialFundingSource,
+            resourcePersonDetails: currentproposalThread.resourcePersonDetails,
+            externalResources: currentproposalThread.externalResources,
+            additionalRequirements: currentproposalThread.additionalRequirements || "nil",
+            targetAudience: currentproposalThread.targetAudience || "",
+            proposerEmail: currentproposalThread.proposerEmail || "",
+            proposerId: currentproposalThread.proposerId,
+            createdAt: currentproposalThread.createdAt
           },
-          archivedAt: serverTimestamp(),
-          version: currentProposalData.version,
+          updatedAt: serverTimestamp(),
+          version: currentproposalThread.version,
           remarks: isFirstEdit 
             ? "Initial version archived during first edit"
-            : `Version ${currentProposalData.version} archived when creating version ${newVersion}`,
+            : `Version ${currentproposalThread.version} archived when creating version ${newVersion}`,
           archivedBy: userId
         };
         
@@ -238,7 +238,7 @@ export default function EditProposalContent({ proposalId, onBack }) {
         status: "pending",
         version: newVersion,
         updatedAt: serverTimestamp(),
-        createdAt: currentProposalData.createdAt || serverTimestamp(),
+        createdAt: currentproposalThread.createdAt || serverTimestamp(),
         additionalRequirements: proposal.additionalRequirements || "nil",
         targetAudience: proposal.targetAudience || "",
         proposerEmail: proposal.proposerEmail || ""
