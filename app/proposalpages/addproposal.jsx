@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,7 +23,6 @@ import {
   addProposal
 } from "../firebase/config";
 
-// Proposal form validation schema
 const formSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters"),
   description: z.string().min(20, "Description must be at least 20 characters"),
@@ -60,8 +59,8 @@ export default function AddProposalContent() {
   const [success, setSuccess] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
+  const topRef = useRef(null);
 
-  // Check if user is authenticated
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
@@ -77,7 +76,16 @@ export default function AddProposalContent() {
     return () => unsubscribe();
   }, []);
 
-  // Initialize form with default values
+  const scrollToTop = () => {
+    setTimeout(() => {
+      if (topRef.current) {
+        topRef.current.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }, 100);
+  };
+
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -110,46 +118,36 @@ export default function AddProposalContent() {
     },
   });
 
-  // Watch for form value changes to conditionally render fields
   const isIndividual = form.watch("isIndividual");
 
-  // Handle form submission
   async function onSubmit(values) {
-    // Reset status messages
     setError("");
     setSuccess("");
     setIsSubmitting(true);
   
     try {
-      // Ensure user is authenticated
       if (!user) {
         setError("You must be logged in to submit a proposal");
         setIsSubmitting(false);
         return;
       }
   
-      // Prepare the proposal data
       const proposalData = {
         ...values,
         proposerId: user.uid,
         proposerEmail: user.email,
         proposerName: user.displayName || user.email,
-        status: "Pending", // Initial status for new proposals
-        version: 1 // Set initial version
+        status: "Pending",
+        version: 1
       };
   
-      // If this is an individual event, remove group details
       if (values.isIndividual) {
         delete proposalData.groupDetails;
       }
   
-      // Submit to Firestore (without creating history entry)
       const proposalId = await addProposal(proposalData);
       
-      console.log("Proposal submitted successfully with ID:", proposalId);
       setSuccess("Proposal submitted successfully!");
-      
-      // Clear form
       form.reset();
       
     } catch (error) {
@@ -157,11 +155,12 @@ export default function AddProposalContent() {
       setError("Failed to submit proposal. Please try again.");
     } finally {
       setIsSubmitting(false);
+      scrollToTop();
     }
   }
 
   return (
-    <div className="pb-10">
+    <div className="pb-10" ref={topRef}>
       <h1 className="text-2xl font-bold mb-6 text-white">Add New Proposal</h1>
       
       {error && (
