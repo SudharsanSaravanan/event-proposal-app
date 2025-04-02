@@ -124,7 +124,11 @@ export default function EditProposalContent({ proposalId, onBack }) {
           id: proposalId,
           additionalRequirements: proposalThread.additionalRequirements || "nil",
           targetAudience: proposalThread.targetAudience || "",
-          proposerEmail: proposalThread.proposerEmail || ""
+          proposerEmail: proposalThread.proposerEmail || "",
+          groupDetails: proposalThread.isIndividual ? undefined : (proposalThread.groupDetails || {
+            maxGroupMembers: 4,
+            feeType: "perhead"
+          })
         });
 
         setLoading(false);
@@ -159,11 +163,35 @@ export default function EditProposalContent({ proposalId, onBack }) {
     }
   };
 
+  const handleIndividualToggle = (isIndividual) => {
+    if (!isIndividual && proposal.groupDetails === undefined) {
+      setProposal(prev => ({
+        ...prev,
+        isIndividual,
+        groupDetails: {
+          maxGroupMembers: 4,
+          feeType: "perhead"
+        }
+      }));
+    } else {
+      setProposal(prev => ({
+        ...prev,
+        isIndividual
+      }));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!isAuthorized) {
       setError("You are not authorized to update this proposal");
+      return;
+    }
+    
+    // Validate group details if in group mode
+    if (!proposal.isIndividual && (!proposal.groupDetails?.maxGroupMembers || !proposal.groupDetails?.feeType)) {
+      setError("Please complete all group details");
       return;
     }
     
@@ -181,7 +209,8 @@ export default function EditProposalContent({ proposalId, onBack }) {
         orderBy("version", "desc")
       );
       const historySnapshot = await getDocs(historyQuery);
-      const isFirstEdit = currentproposalThread.version === 1 && historySnapshot.empty && (currentproposalThread.status === "reviewed" || currentproposalThread.status === "Reviewed");
+      const isFirstEdit = currentproposalThread.version === 1 && historySnapshot.empty && 
+                         (currentproposalThread.status === "reviewed" || currentproposalThread.status === "Reviewed");
       
       // Determine if we're creating a new version (only when status is "reviewed")
       const isCreatingNewVersion = currentproposalThread.status?.toLowerCase() === "reviewed";
@@ -197,33 +226,14 @@ export default function EditProposalContent({ proposalId, onBack }) {
         // Archive the current version to history before updating
         const historyData = {
           proposalThread: { 
-            title: currentproposalThread.title,
-            description: currentproposalThread.description,
-            objectives: currentproposalThread.objectives,
-            outcomes: currentproposalThread.outcomes,
-            participantEngagement: currentproposalThread.participantEngagement,
-            duration: currentproposalThread.duration,
-            registrationFee: currentproposalThread.registrationFee,
-            isIndividual: currentproposalThread.isIndividual,
-            groupDetails: currentproposalThread.groupDetails,
-            maxSeats: currentproposalThread.maxSeats,
-            isEvent: currentproposalThread.isEvent,
-            isTechnical: currentproposalThread.isTechnical,
-            preferredDays: currentproposalThread.preferredDays,
-            estimatedBudget: currentproposalThread.estimatedBudget,
-            potentialFundingSource: currentproposalThread.potentialFundingSource,
-            resourcePersonDetails: currentproposalThread.resourcePersonDetails,
-            externalResources: currentproposalThread.externalResources,
+            ...currentproposalThread,
             additionalRequirements: currentproposalThread.additionalRequirements || "nil",
-            targetAudience: currentproposalThread.targetAudience || "",
-            proposerEmail: currentproposalThread.proposerEmail || "",
-            proposerId: currentproposalThread.proposerId,
-            createdAt: currentproposalThread.createdAt
+            targetAudience: currentproposalThread.targetAudience || ""
           },
           updatedAt: serverTimestamp(),
           version: currentproposalThread.version,
           remarks: isFirstEdit 
-            ? "Initial version archived during first edit"
+            ? "Initial version archived"
             : `Version ${currentproposalThread.version} archived when creating version ${newVersion}`,
           archivedBy: userId
         };
@@ -244,6 +254,11 @@ export default function EditProposalContent({ proposalId, onBack }) {
         proposerEmail: proposal.proposerEmail || ""
       };
       
+      // Remove groupDetails if switching to individual
+      if (proposal.isIndividual) {
+        updatedProposal.groupDetails = null; // Set to null to remove from Firestore
+      }
+      
       // Remove the id field before saving
       const { id, ...proposalWithoutId } = updatedProposal;
       
@@ -251,8 +266,8 @@ export default function EditProposalContent({ proposalId, onBack }) {
       await updateDoc(proposalRef, proposalWithoutId);
       
       setSuccess(isCreatingNewVersion 
-        ? `New version ${newVersion} created successfully! Status set to pending.` 
-        : `Proposal updated successfully! Status set to pending.`);
+        ? `Proposal updated successfully! v${newVersion}` 
+        : `Proposal updated successfully!`);
       
       // Update local state
       setProposal(prev => ({
@@ -517,9 +532,8 @@ export default function EditProposalContent({ proposalId, onBack }) {
                 <label className="inline-flex items-center">
                   <input
                     type="radio"
-                    name="isIndividual"
                     checked={proposal.isIndividual === true}
-                    onChange={() => setProposal(prev => ({...prev, isIndividual: true}))}
+                    onChange={() => handleIndividualToggle(true)}
                     className="form-radio"
                   />
                   <span className="ml-2">Individual Registration</span>
@@ -529,9 +543,8 @@ export default function EditProposalContent({ proposalId, onBack }) {
                 <label className="inline-flex items-center">
                   <input
                     type="radio"
-                    name="isIndividual"
                     checked={proposal.isIndividual === false}
-                    onChange={() => setProposal(prev => ({...prev, isIndividual: false}))}
+                    onChange={() => handleIndividualToggle(false)}
                     className="form-radio"
                   />
                   <span className="ml-2">Group Registration</span>
@@ -540,7 +553,7 @@ export default function EditProposalContent({ proposalId, onBack }) {
             </div>
           </div>
           
-          {proposal.isIndividual === false && (
+          {!proposal.isIndividual && (
             <div className="mt-4 bg-gray-700 p-4 rounded-md">
               <h3 className="text-md font-semibold mb-3">Group Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -549,7 +562,7 @@ export default function EditProposalContent({ proposalId, onBack }) {
                   <input
                     type="number"
                     name="groupDetails.maxGroupMembers"
-                    value={proposal.groupDetails?.maxGroupMembers || 2}
+                    value={proposal.groupDetails?.maxGroupMembers || 4}
                     onChange={handleChange}
                     min="2"
                     max="10"
