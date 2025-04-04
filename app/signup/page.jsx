@@ -42,13 +42,13 @@ const SignUp = () => {
     }
 
     try {
-      console.log("Attempting signup with:", email, password);
+      //console.log("Attempting signup with:", email, password);
 
       // Create user in Firebase Authentication
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      console.log("User Signed Up:", user);
+      //console.log("User Signed Up:", user);
 
       // Store additional user data in Firestore
       const userRef = doc(db, "Auth", user.uid);
@@ -60,7 +60,7 @@ const SignUp = () => {
         createdAt: new Date().toISOString(),
       });
 
-      console.log("User data stored in Firestore");
+      //console.log("User data stored in Firestore");
 
       // Store user info in session storage
       sessionStorage.setItem("user", true);
