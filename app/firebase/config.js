@@ -356,6 +356,139 @@ const updateProposal = async (proposalId, proposalData) => {
   }
 };
 
+// Check if user is a reviewer
+async function isUserReviewer(uid) {
+  try {
+    const reviewerRef = doc(db, "Reviewers", uid);
+    const reviewerSnap = await getDoc(reviewerRef);
+    return reviewerSnap.exists();
+  } catch (error) {
+    console.error("Error checking reviewer status:", error);
+    return false;
+  }
+}
+
+// Get reviewer info
+async function getReviewerInfo(uid) {
+  try {
+    const reviewerRef = doc(db, "Reviewers", uid);
+    const reviewerSnap = await getDoc(reviewerRef);
+    
+    if (reviewerSnap.exists()) {
+      return reviewerSnap.data();
+    }
+    return null;
+  } catch (error) {
+    console.error("Error getting reviewer info:", error);
+    return null;
+  }
+}
+
+// Get proposals for a reviewer based on their departments
+async function getReviewerProposals(departments) {
+  try {
+    console.log("Fetching proposals for departments:", departments);
+    
+    if (!departments || departments.length === 0) {
+      console.error("No departments specified for reviewer");
+      return [];
+    }
+    
+    // Check if departments is an array
+    if (!Array.isArray(departments)) {
+      console.error("Departments is not an array:", departments);
+      // Try to convert to array if it's an object with numeric keys
+      if (typeof departments === 'object') {
+        departments = Object.values(departments);
+        console.log("Converted departments to array:", departments);
+      } else {
+        // If it's a string, put it in an array
+        departments = [departments];
+        console.log("Converted single department to array:", departments);
+      }
+    }
+
+    // Get all proposals first
+    const proposalsRef = collection(db, "Proposals");
+    const proposalsSnapshot = await getDocs(proposalsRef);
+
+    console.log(`Retrieved ${proposalsSnapshot.size} total proposals`);
+    
+    // Filter proposals that match any of the reviewer's departments
+    const proposals = [];
+    
+    proposalsSnapshot.forEach((doc) => {
+      const proposalData = doc.data();
+      const proposalDept = proposalData.department;
+      
+      console.log(`Checking proposal ${doc.id}: department=${proposalDept}`);
+      
+      // Check if this proposal's department is in the reviewer's departments
+      if (proposalDept && departments.includes(proposalDept)) {
+        console.log(`✓ Proposal ${doc.id} matches department: ${proposalDept}`);
+        proposals.push({
+          id: doc.id,
+          ...proposalData
+        });
+      }
+    });
+    
+    console.log(`Found ${proposals.length} matching proposals`);
+    return proposals;
+  } catch (error) {
+    console.error("Error fetching reviewer proposals:", error);
+    throw error;
+  }
+}
+
+// Update proposal status (for reviewers)
+async function updateProposalStatusReviewer(proposalId, status, comment, reviewerName) {
+  try {
+    const proposalRef = doc(db, "Proposals", proposalId);
+    const proposalSnap = await getDoc(proposalRef);
+    
+    if (!proposalSnap.exists()) {
+      throw new Error("Proposal not found");
+    }
+    
+    const proposalData = proposalSnap.data();
+    const currentComments = proposalData.comments || [];
+    
+    // Create new comment
+    const newComment = {
+      text: comment,
+      reviewerName: reviewerName,
+      timestamp: serverTimestamp(),
+      status: status
+    };
+    
+    // Update proposal with new status and comment
+    await updateDoc(proposalRef, {
+      status: status,
+      updatedAt: serverTimestamp(),
+      reviewedBy: auth.currentUser.uid,
+      reviewedAt: serverTimestamp(),
+      comments: [...currentComments, newComment]
+    });
+    
+    // Add history record
+    const historyCollectionRef = collection(db, "Proposals", proposalId, "History");
+    await addDoc(historyCollectionRef, {
+      proposalThread: proposalData,
+      updatedAt: serverTimestamp(),
+      version: proposalData.version || 1,
+      remarks: `Status changed to ${status} by reviewer`,
+      updatedBy: auth.currentUser.uid,
+      comments: [...currentComments, newComment]
+    });
+    
+    return true;
+  } catch (error) {
+    console.error("Error updating proposal status:", error);
+    throw error;
+  }
+}
+
 export {
   app,
   auth,
@@ -373,5 +506,9 @@ export {
   updateProposalStatus,
   addProposalHistory,
   updateProposal,
-  deleteField
+  deleteField,
+  isUserReviewer,
+  getReviewerInfo,
+  getReviewerProposals,
+  updateProposalStatusReviewer
 };
