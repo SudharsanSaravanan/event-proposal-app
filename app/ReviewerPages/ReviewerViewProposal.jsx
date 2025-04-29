@@ -195,7 +195,7 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
               pending: finalProposals.filter(p => p.status?.toLowerCase() === "pending" || !p.status).length,
               approved: finalProposals.filter(p => p.status?.toLowerCase() === "approved").length,
               rejected: finalProposals.filter(p => p.status?.toLowerCase() === "rejected").length,
-              changes: finalProposals.filter(p => p.status?.toLowerCase() === "reviewed").length
+              changes: finalProposals.filter(p => p.status?.toLowerCase() === "changes requested").length
             });
             
           } catch (queryErr) {
@@ -286,7 +286,7 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
         newStats.pending = Math.max(0, newStats.pending - 1);
         
         // Increment the new status count
-        const statusKey = reviewStatus.toLowerCase() === "reviewed" 
+        const statusKey = reviewStatus.toLowerCase() === "changes requested" 
           ? "changes" 
           : reviewStatus.toLowerCase();
         
@@ -321,7 +321,7 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
         } else if (filter === "rejected") {
           return proposal.status?.toLowerCase() === "rejected";
         } else if (filter === "changes") {
-          return proposal.status?.toLowerCase() === "reviewed";
+          return proposal.status?.toLowerCase() === "changes requested";
         }
         return true;
       });
@@ -332,7 +332,7 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
         return <CheckCircle size={18} className="text-green-500" />;
       case "rejected":
         return <XCircle size={18} className="text-red-500" />;
-      case "reviewed":
+      case "changes requested":
         return <AlertTriangle size={18} className="text-orange-500" />;
       case "pending":
       default:
@@ -346,8 +346,8 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
         return <span className="px-2 py-1 bg-green-600 text-white text-xs rounded-full whitespace-nowrap">Approved</span>;
       case "rejected":
         return <span className="px-2 py-1 bg-red-600 text-white text-xs rounded-full whitespace-nowrap">Rejected</span>;
-      case "reviewed":
-        return <span className="px-2 py-1 bg-orange-600 text-white text-xs rounded-full whitespace-nowrap">Reviewed</span>;
+      case "changes requested":
+        return <span className="px-2 py-1 bg-orange-600 text-white text-xs rounded-full whitespace-nowrap">Changes Requested</span>;
       case "pending":
       default:
         return <span className="px-2 py-1 bg-yellow-600 text-white text-xs rounded-full whitespace-nowrap">Pending Review</span>;
@@ -523,7 +523,7 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
             <option value="pending">Pending Review</option>
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
-            <option value="changes">Reviewed</option>
+            <option value="changes">Changes Requested</option>
           </select>
         </div>
         
@@ -821,11 +821,11 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
                               <button
                                 type="button"
                                 className={`flex items-center justify-center px-3 py-2 rounded-md text-sm ${
-                                  reviewStatus === "Reviewed" 
+                                  reviewStatus === "Changes Requested" 
                                     ? "bg-orange-700 text-white" 
                                     : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                                 }`}
-                                onClick={() => setReviewStatus("Reviewed")}
+                                onClick={() => setReviewStatus("Changes Requested")}
                               >
                                 <RefreshCw size={14} className="mr-1" />
                                 Request Changes
