@@ -20,7 +20,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
 import { 
   auth, 
-  addProposal
+  addProposal,
+  getUserById
 } from "../firebase/config";
 
 const formSchema = z.object({
@@ -62,10 +63,24 @@ export default function AddProposalContent() {
   const topRef = useRef(null);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
-        setIsAuthenticated(true);
-        setUser(user);
+        try {
+          const userData = await getUserById(user.uid);
+          if (userData) {
+            setUser({
+              ...user,
+              department: userData.department || ''
+            });
+          } else {
+            setUser(user);
+          }
+          setIsAuthenticated(true);
+        } catch (err) {
+          console.error("Error fetching user data:", err);
+          setUser(user);
+          setIsAuthenticated(true);
+        }
       } else {
         setIsAuthenticated(false);
         setUser(null);
@@ -95,13 +110,13 @@ export default function AddProposalContent() {
       outcomes: "",
       participantEngagement: "",
       duration: "",
-      registrationFee: "",
+      registrationFee: 0,
       isIndividual: true,
       groupDetails: {
         maxGroupMembers: 4,
         feeType: "perhead",
       },
-      maxSeats: "",
+      maxSeats: 1,
       isEvent: false,
       isTechnical: true,
       preferredDays: {
@@ -109,7 +124,7 @@ export default function AddProposalContent() {
         day2: "",
         day3: "",
       },
-      estimatedBudget: "",
+      estimatedBudget: 0,
       potentialFundingSource: "",
       resourcePersonDetails: "",
       externalResources: "",
@@ -137,15 +152,17 @@ export default function AddProposalContent() {
         proposerId: user.uid,
         proposerEmail: user.email,
         proposerName: user.displayName || user.email,
+        department: user.department || '',
         status: "Pending",
-        version: 1
+        version: 1,
+        createdAt: new Date().toISOString()
       };
   
       if (values.isIndividual) {
         delete proposalData.groupDetails;
       }
   
-      const proposalId = await addProposal(proposalData);
+      await addProposal(proposalData);
       
       setSuccess("Proposal submitted successfully!");
       form.reset();
