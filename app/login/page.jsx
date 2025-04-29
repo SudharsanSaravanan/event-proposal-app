@@ -28,7 +28,36 @@ const SignIn = () => {
       const result = await signInWithEmailAndPassword(email, password);
       
       if (result && result.user) {
-        // Get user role from Firestore
+        console.log("User logged in:", result.user.uid);
+        
+        // First check if user is a reviewer
+        const reviewerRef = doc(db, "Reviewers", result.user.uid);
+        const reviewerSnapshot = await getDoc(reviewerRef);
+        
+        if (reviewerSnapshot.exists()) {
+          console.log("User is a reviewer");
+          const reviewerData = reviewerSnapshot.data();
+          
+          // Store reviewer data in session storage
+          sessionStorage.setItem("user", true);
+          sessionStorage.setItem("name", reviewerData.name || "");
+          sessionStorage.setItem("role", "Reviewer");
+          
+          // Handle department data correctly
+          let departments = reviewerData.department;
+          // If department is an object with numeric keys, convert to array
+          if (departments && typeof departments === 'object' && !Array.isArray(departments)) {
+            departments = Object.values(departments);
+          }
+          console.log("Reviewer departments:", departments);
+          sessionStorage.setItem("departments", JSON.stringify(departments || []));
+          
+          // Redirect to reviewer dashboard
+          router.push("/reviewer");
+          return;
+        }
+        
+        // If not a reviewer, check regular user role
         const userRef = doc(db, "Auth", result.user.uid);
         const userSnap = await getDoc(userRef);
         
@@ -45,9 +74,6 @@ const SignIn = () => {
           switch (userRole) {
             case "Admin":
               router.push("/admin");
-              break;
-            case "Reviewer":
-              router.push("/reviewer");
               break;
             case "User":
               router.push("/user");
@@ -68,8 +94,6 @@ const SignIn = () => {
       console.error("Login error:", e);
     } finally {
       setLoading(false);
-      setEmail("");
-      setPassword("");
     }
   };
 
