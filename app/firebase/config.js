@@ -219,13 +219,11 @@ const addProposalHistory = async (proposalId, historyData, userId) => {
   }
 };
 
-
 /**
  * Update proposal status and manage history entries
  */
 const updateProposalStatus = async (proposalId, newStatus, remarks, userId) => {
   try {
-    // First get the current proposal data
     const proposalRef = doc(db, "Proposals", proposalId);
     const proposalSnap = await getDoc(proposalRef);
     
@@ -234,12 +232,12 @@ const updateProposalStatus = async (proposalId, newStatus, remarks, userId) => {
     }
     
     const proposalData = proposalSnap.data();
-    const currentStatus = proposalData.status?.toLowerCase() || "pending";
     let newVersion = proposalData.version || 1;
     
-    // Only increment version if new status is "reviewed"
-    if (newStatus.toLowerCase() === "reviewed") {
-      newVersion = (proposalData.version || 1) + 1;
+    // Only increment version if new status is "reviewed" and current status isn't "reviewed"
+    if (newStatus.toLowerCase() === "reviewed" && 
+        proposalData.status?.toLowerCase() !== "reviewed") {
+      newVersion = newVersion + 1;
     }
     
     // Update the proposal with new status and version if needed
@@ -249,35 +247,38 @@ const updateProposalStatus = async (proposalId, newStatus, remarks, userId) => {
       version: newVersion
     });
     
-    // Create a copy for history without status and version
-    const proposalForHistory = { ...proposalData };
-    delete proposalForHistory.status;
-    delete proposalForHistory.version;
-    
-    // Check if there's already a history entry for this version
-    const historyQuery = query(
-      collection(db, "Proposals", proposalId, "History"),
-      where("version", "==", newVersion)
-    );
-    const historySnapshot = await getDocs(historyQuery);
-    
-    if (!historySnapshot.empty) {
-      // Update existing history entry
-      const historyDoc = historySnapshot.docs[0];
-      await updateDoc(doc(db, "Proposals", proposalId, "History", historyDoc.id), {
-        proposalThread: proposalForHistory,
-        updatedAt: serverTimestamp(),
-        remarks: remarks || `Status updated to ${newStatus}`
-      });
-    } else {
-      // Create new history entry
-      await addDoc(collection(db, "Proposals", proposalId, "History"), {
-        proposalThread: proposalForHistory,
-        updatedAt: serverTimestamp(),
-        remarks: remarks || `Status updated to ${newStatus}`,
-        version: newVersion,
-        updatedBy: userId
-      });
+    // Only create history entry if not changing to "reviewed"
+    if (newStatus.toLowerCase() !== "reviewed") {
+      // Create a copy for history without status and version
+      const proposalForHistory = { ...proposalData };
+      delete proposalForHistory.status;
+      delete proposalForHistory.version;
+      
+      // Check if there's already a history entry for this version
+      const historyQuery = query(
+        collection(db, "Proposals", proposalId, "History"),
+        where("version", "==", newVersion)
+      );
+      const historySnapshot = await getDocs(historyQuery);
+      
+      if (!historySnapshot.empty) {
+        // Update existing history entry
+        const historyDoc = historySnapshot.docs[0];
+        await updateDoc(doc(db, "Proposals", proposalId, "History", historyDoc.id), {
+          proposalThread: proposalForHistory,
+          updatedAt: serverTimestamp(),
+          remarks: remarks || `Status updated to ${newStatus}`
+        });
+      } else {
+        // Create new history entry
+        await addDoc(collection(db, "Proposals", proposalId, "History"), {
+          proposalThread: proposalForHistory,
+          updatedAt: serverTimestamp(),
+          remarks: remarks || `Status updated to ${newStatus}`,
+          version: newVersion,
+          updatedBy: userId
+        });
+      }
     }
     
     return true;
@@ -454,32 +455,25 @@ async function updateProposalStatusReviewer(proposalId, status, comment, reviewe
     const proposalData = proposalSnap.data();
     const currentComments = proposalData.comments || [];
     
-    // Create new comment
+    // Create new comment with regular Date object
     const newComment = {
       text: comment,
       reviewerName: reviewerName,
-      timestamp: serverTimestamp(),
+      timestamp: new Date(), // Use regular Date instead of serverTimestamp()
       status: status
     };
+    
+    // For reviewer actions, we never create history entries or increment versions
+    const version = proposalData.version || 1;
     
     // Update proposal with new status and comment
     await updateDoc(proposalRef, {
       status: status,
-      updatedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(), // This is fine as a top-level field
       reviewedBy: auth.currentUser.uid,
-      reviewedAt: serverTimestamp(),
-      comments: [...currentComments, newComment]
-    });
-    
-    // Add history record
-    const historyCollectionRef = collection(db, "Proposals", proposalId, "History");
-    await addDoc(historyCollectionRef, {
-      proposalThread: proposalData,
-      updatedAt: serverTimestamp(),
-      version: proposalData.version || 1,
-      remarks: `Status changed to ${status} by reviewer`,
-      updatedBy: auth.currentUser.uid,
-      comments: [...currentComments, newComment]
+      reviewedAt: serverTimestamp(), // This is also fine as a top-level field
+      comments: [...currentComments, newComment], // Contains regular Date object
+      version: version // Keep the same version
     });
     
     return true;

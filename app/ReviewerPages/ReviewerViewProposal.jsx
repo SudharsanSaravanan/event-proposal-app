@@ -26,14 +26,14 @@ import {
   AlertTriangle,
   File,
   FileText,
-  PenTool,
-  Bug
+  PenTool
 } from "lucide-react";
 import {
   db,
   getReviewerInfo, 
   getReviewerProposals, 
-  updateProposalStatus
+  updateProposalStatus,
+  updateProposalStatusReviewer
 } from "../firebase/config";
 import { collection, query, getDocs, doc, getDoc } from "firebase/firestore";
 
@@ -42,7 +42,7 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
   const [loading, setLoading] = useState(true);
   const [reviewer, setReviewer] = useState(null);
   const [error, setError] = useState(null);
-  const [filter, setFilter] = useState("all"); // Initialize with "all" filter
+  const [filter, setFilter] = useState("all");
   const [expandedProposal, setExpandedProposal] = useState(null);
   const [reviewComment, setReviewComment] = useState("");
   const [reviewStatus, setReviewStatus] = useState("Approved");
@@ -55,40 +55,29 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
     rejected: 0,
     changes: 0
   });
-  const [showDebug, setShowDebug] = useState(false); // Start with debug hidden
-  const [debugInfo, setDebugInfo] = useState({});
   
   const commentInputRef = useRef(null);
   const router = useRouter();
   const auth = getAuth();
 
-  // Direct database query function for debugging
   const directQueryProposals = async (departments) => {
     try {
-      console.log("Performing direct query with departments:", departments);
       const proposalsRef = collection(db, "Proposals");
       const snapshot = await getDocs(proposalsRef);
       
       const allProposals = [];
       snapshot.forEach(doc => {
         const data = doc.data();
-        console.log(`Found proposal: ${doc.id}, Department: ${data.department}, Title: ${data.title || 'No title'}`);
         allProposals.push({
           id: doc.id,
           ...data
         });
       });
       
-      console.log(`Total proposals found: ${allProposals.length}`);
-      
-      // Filter based on departments
       const matchingProposals = allProposals.filter(proposal => {
-        const deptMatch = departments.includes(proposal.department);
-        console.log(`Checking proposal ${proposal.id} - Department: ${proposal.department}, Match: ${deptMatch}`);
-        return deptMatch;
+        return departments.includes(proposal.department);
       });
       
-      console.log(`Matching proposals: ${matchingProposals.length}`);
       return matchingProposals;
     } catch (error) {
       console.error("Error in direct query:", error);
@@ -100,9 +89,6 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
-          console.log("User authenticated:", user.uid);
-          
-          // First get reviewer info directly from Firestore
           const reviewerRef = doc(db, "Reviewers", user.uid);
           const reviewerDoc = await getDoc(reviewerRef);
           
@@ -113,38 +99,25 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
           }
           
           const reviewerData = reviewerDoc.data();
-          console.log("Raw reviewer data:", reviewerData);
           
-          // Extract departments data - handle various formats
           let departments = [];
           
           if (reviewerData.department) {
-            // Handle different department formats
             if (Array.isArray(reviewerData.department)) {
               departments = reviewerData.department;
             } else if (typeof reviewerData.department === 'object') {
-              // Convert object with numeric keys to array
               departments = Object.values(reviewerData.department);
             } else if (typeof reviewerData.department === 'string') {
-              // Single department as string
               departments = [reviewerData.department];
             }
           }
           
-          console.log("Processed departments:", departments);
-          
           if (!departments || departments.length === 0) {
             setError("No departments are assigned to your reviewer account.");
             setLoading(false);
-            setDebugInfo({
-              reviewerId: user.uid,
-              rawReviewerData: reviewerData,
-              noDepartmentsAssigned: true
-            });
             return;
           }
           
-          // Store reviewer info in state
           setReviewer({
             uid: user.uid,
             email: user.email,
@@ -153,67 +126,33 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
             ...reviewerData
           });
           
-          // Update debug info
-          setDebugInfo({
-            reviewerId: user.uid,
-            reviewerName: reviewerData.name,
-            departmentsRaw: reviewerData.department,
-            departmentsProcessed: departments
-          });
-          
           try {
-            // First try direct query for more debugging info
             const directResults = await directQueryProposals(departments);
-            setDebugInfo(prev => ({
-              ...prev,
-              directQueryResults: directResults.length,
-              directQueryProposalIds: directResults.map(p => p.id)
-            }));
-            
-            // Now use the regular function
-            console.log("Fetching proposals with departments:", departments);
             const fetchedProposals = await getReviewerProposals(departments);
-            console.log("Fetched proposals:", fetchedProposals);
             
             setProposals(fetchedProposals);
             
-            // If direct query found proposals but the regular function didn't,
-            // use the direct query results
             if (directResults.length > 0 && fetchedProposals.length === 0) {
-              console.log("Using direct query results instead");
               setProposals(directResults);
-              setDebugInfo(prev => ({
-                ...prev,
-                usingDirectResults: true
-              }));
             }
             
-            // Calculate statistics from whatever proposals we're using
             const finalProposals = fetchedProposals.length > 0 ? fetchedProposals : directResults;
             setStatistics({
               total: finalProposals.length,
               pending: finalProposals.filter(p => p.status?.toLowerCase() === "pending" || !p.status).length,
               approved: finalProposals.filter(p => p.status?.toLowerCase() === "approved").length,
               rejected: finalProposals.filter(p => p.status?.toLowerCase() === "rejected").length,
-              changes: finalProposals.filter(p => p.status?.toLowerCase() === "changes requested").length
+              changes: finalProposals.filter(p => p.status?.toLowerCase() === "reviewed").length
             });
             
           } catch (queryErr) {
             console.error("Error fetching proposals:", queryErr);
             setError("Failed to fetch proposals: " + queryErr.message);
-            setDebugInfo(prev => ({
-              ...prev,
-              queryError: queryErr.message
-            }));
           }
           
         } catch (err) {
           console.error("Error loading reviewer data:", err);
           setError("Failed to load reviewer information: " + err.message);
-          setDebugInfo(prev => ({
-            ...prev,
-            mainError: err.message
-          }));
         } finally {
           setLoading(false);
         }
@@ -236,7 +175,6 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
       setExpandedProposal(id);
       setReviewComment("");
       setReviewStatus("Approved");
-      // Focus on comment input after expansion
       setTimeout(() => {
         if (commentInputRef.current) {
           commentInputRef.current.focus();
@@ -254,14 +192,13 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
     setIsSubmitting(true);
     
     try {
-      await updateProposalStatus(
+      await updateProposalStatusReviewer(
         proposalId,
         reviewStatus,
         reviewComment,
         reviewer.displayName || reviewer.name || "Reviewer"
       );
       
-      // Update the proposal in the local state
       setProposals(prevProposals => 
         prevProposals.map(proposal => 
           proposal.id === proposalId 
@@ -279,14 +216,11 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
         )
       );
       
-      // Recalculate statistics after update
       setStatistics(prev => {
-        // Decrement the old status count (assuming it was pending)
         const newStats = { ...prev };
         newStats.pending = Math.max(0, newStats.pending - 1);
         
-        // Increment the new status count
-        const statusKey = reviewStatus.toLowerCase() === "changes requested" 
+        const statusKey = reviewStatus.toLowerCase() === "reviewed" 
           ? "changes" 
           : reviewStatus.toLowerCase();
         
@@ -298,7 +232,6 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
       setSuccessMessage(`Proposal status updated to "${reviewStatus}" successfully!`);
       setReviewComment("");
       
-      // Auto-collapse after a successful review
       setTimeout(() => {
         setExpandedProposal(null);
         setSuccessMessage("");
@@ -321,7 +254,7 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
         } else if (filter === "rejected") {
           return proposal.status?.toLowerCase() === "rejected";
         } else if (filter === "changes") {
-          return proposal.status?.toLowerCase() === "changes requested";
+          return proposal.status?.toLowerCase() === "reviewed";
         }
         return true;
       });
@@ -332,7 +265,7 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
         return <CheckCircle size={18} className="text-green-500" />;
       case "rejected":
         return <XCircle size={18} className="text-red-500" />;
-      case "changes requested":
+      case "reviewed":
         return <AlertTriangle size={18} className="text-orange-500" />;
       case "pending":
       default:
@@ -346,8 +279,8 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
         return <span className="px-2 py-1 bg-green-600 text-white text-xs rounded-full whitespace-nowrap">Approved</span>;
       case "rejected":
         return <span className="px-2 py-1 bg-red-600 text-white text-xs rounded-full whitespace-nowrap">Rejected</span>;
-      case "changes requested":
-        return <span className="px-2 py-1 bg-orange-600 text-white text-xs rounded-full whitespace-nowrap">Changes Requested</span>;
+      case "reviewed":
+        return <span className="px-2 py-1 bg-orange-600 text-white text-xs rounded-full whitespace-nowrap">Reviewed</span>;
       case "pending":
       default:
         return <span className="px-2 py-1 bg-yellow-600 text-white text-xs rounded-full whitespace-nowrap">Pending Review</span>;
@@ -402,20 +335,13 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
             </button>
           </div>
         </div>
-        
-        {/* Always show debug info on error */}
-        <div className="mt-6 bg-gray-800 p-4 rounded-lg border border-gray-600 max-w-2xl w-full">
-          <h2 className="text-lg font-semibold text-white mb-2">Debug Information</h2>
-          <pre className="text-xs text-gray-300 bg-gray-900 p-3 rounded overflow-auto max-h-60">
-            {JSON.stringify(debugInfo, null, 2)}
-          </pre>
-        </div>
       </div>
     );
   }
 
   return (
     <div className="pb-10 px-4 sm:pr-6">
+      <br />
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
         <h1 className="text-2xl font-bold text-white flex items-center gap-2">
           <FileText className="h-6 w-6" />
@@ -423,15 +349,6 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
         </h1>
         
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowDebug(!showDebug)}
-            className="flex items-center text-gray-400 hover:text-gray-300 transition"
-            title="Toggle debug panel"
-          >
-            <Bug size={16} className="mr-1" />
-            {showDebug ? "Hide Debug" : "Debug"}
-          </button>
-          
           <button 
             onClick={onBack}
             className="flex items-center text-blue-400 hover:text-blue-300 transition whitespace-nowrap"
@@ -441,15 +358,6 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
           </button>
         </div>
       </div>
-
-      {showDebug && (
-        <div className="mb-6 bg-gray-800 p-4 rounded-lg border border-gray-600">
-          <h2 className="text-lg font-semibold text-white mb-2">Debug Information</h2>
-          <pre className="text-xs text-gray-300 bg-gray-900 p-3 rounded overflow-auto max-h-60">
-            {JSON.stringify(debugInfo, null, 2)}
-          </pre>
-        </div>
-      )}
 
       {successMessage && (
         <div className="bg-green-900/50 border border-green-700 text-green-200 p-4 rounded-md mb-6">
@@ -523,7 +431,7 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
             <option value="pending">Pending Review</option>
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
-            <option value="changes">Changes Requested</option>
+            <option value="changes">Reviewed</option>
           </select>
         </div>
         
@@ -555,7 +463,6 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
               key={proposal.id} 
               className={`bg-gray-800 rounded-lg border ${expandedProposal === proposal.id ? "border-blue-500" : "border-gray-700"} transition-all`}
             >
-              {/* Proposal Header - Always visible */}
               <div 
                 className="p-4 cursor-pointer flex justify-between items-center"
                 onClick={() => toggleExpand(proposal.id)}
@@ -603,11 +510,9 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
                 </div>
               </div>
               
-              {/* Proposal Details - Shown when expanded */}
               {expandedProposal === proposal.id && (
                 <div className="border-t border-gray-700 p-4">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Left Column - Proposal Details */}
                     <div className="space-y-4">
                       <div>
                         <h4 className="text-sm font-medium text-gray-300 mb-2">Description:</h4>
@@ -647,7 +552,6 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
                         <h4 className="text-sm font-medium text-gray-300 mb-3">Additional Information:</h4>
                         
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {/* Target Audience */}
                           {proposal.targetAudience && (
                             <div className="col-span-2">
                               <h5 className="text-xs font-medium text-gray-400 flex items-center gap-1">
@@ -657,7 +561,6 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
                             </div>
                           )}
                           
-                          {/* Duration */}
                           {proposal.duration && (
                             <div>
                               <h5 className="text-xs font-medium text-gray-400">Duration:</h5>
@@ -665,7 +568,6 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
                             </div>
                           )}
                           
-                          {/* Registration Fee */}
                           {proposal.registrationFee !== undefined && (
                             <div>
                               <h5 className="text-xs font-medium text-gray-400">Registration Fee:</h5>
@@ -673,7 +575,6 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
                             </div>
                           )}
                           
-                          {/* Maximum Seats */}
                           {proposal.maxSeats && (
                             <div>
                               <h5 className="text-xs font-medium text-gray-400">Maximum Seats:</h5>
@@ -681,7 +582,6 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
                             </div>
                           )}
                           
-                          {/* Budget */}
                           {proposal.estimatedBudget && (
                             <div>
                               <h5 className="text-xs font-medium text-gray-400">Estimated Budget:</h5>
@@ -689,7 +589,6 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
                             </div>
                           )}
                           
-                          {/* Funding Source */}
                           {proposal.potentialFundingSource && (
                             <div>
                               <h5 className="text-xs font-medium text-gray-400">Funding Source:</h5>
@@ -697,7 +596,6 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
                             </div>
                           )}
                           
-                          {/* Resource Person */}
                           {proposal.resourcePersonDetails && (
                             <div>
                               <h5 className="text-xs font-medium text-gray-400">Resource Person:</h5>
@@ -705,7 +603,6 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
                             </div>
                           )}
                           
-                          {/* External Resources */}
                           {proposal.externalResources && (
                             <div>
                               <h5 className="text-xs font-medium text-gray-400">External Resources:</h5>
@@ -713,7 +610,6 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
                             </div>
                           )}
                           
-                          {/* Type Badges */}
                           <div>
                             <h5 className="text-xs font-medium text-gray-400">Type:</h5>
                             <div className="flex flex-wrap gap-2 mt-1">
@@ -738,9 +634,7 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
                       </div>
                     </div>
                     
-                    {/* Right Column - Review Section */}
                     <div className="space-y-4">
-                      {/* Previous Comments */}
                       <div>
                         <h4 className="text-sm font-medium text-gray-300 mb-2 flex items-center">
                           <MessageSquare size={16} className="mr-1" />
@@ -779,7 +673,6 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
                         )}
                       </div>
                       
-                      {/* Add Review Form */}
                       <div className="bg-gray-700 p-4 rounded">
                         <h4 className="text-sm font-medium text-gray-300 mb-3 flex items-center">
                           <PenTool size={16} className="mr-1" />
@@ -821,11 +714,11 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
                               <button
                                 type="button"
                                 className={`flex items-center justify-center px-3 py-2 rounded-md text-sm ${
-                                  reviewStatus === "Changes Requested" 
+                                  reviewStatus === "Reviewed" 
                                     ? "bg-orange-700 text-white" 
                                     : "bg-gray-600 text-gray-300 hover:bg-gray-500"
                                 }`}
-                                onClick={() => setReviewStatus("Changes Requested")}
+                                onClick={() => setReviewStatus("Reviewed")}
                               >
                                 <RefreshCw size={14} className="mr-1" />
                                 Request Changes
@@ -882,4 +775,4 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
       )}
     </div>
   );
-}/**/
+}

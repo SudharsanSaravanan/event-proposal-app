@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { auth, isUserReviewer, getReviewerInfo } from "../firebase/config";
+import { auth, isUserReviewer, getReviewerInfo, getReviewerProposals } from "../firebase/config";
 import { onAuthStateChanged } from "firebase/auth";
 import { 
   ClipboardList, 
@@ -9,7 +9,8 @@ import {
   XCircle, 
   Clock, 
   FileText, 
-  Settings
+  Settings,
+  RefreshCw
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -17,47 +18,109 @@ export default function ReviewerDashboardContent({ onNavigate }) {
   const [loading, setLoading] = useState(true);
   const [reviewer, setReviewer] = useState(null);
   const [error, setError] = useState(null);
+  const [statistics, setStatistics] = useState({
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    departments: []
+  });
+  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
+
+  const loadReviewerData = async (user) => {
+    try {
+      setLoading(true);
+      const reviewerCheck = await isUserReviewer(user.uid);
+      
+      if (reviewerCheck) {
+        const reviewerData = await getReviewerInfo(user.uid);
+        
+        // Process departments (handle different formats)
+        let departments = [];
+        if (reviewerData.department) {
+          if (Array.isArray(reviewerData.department)) {
+            departments = reviewerData.department;
+          } else if (typeof reviewerData.department === 'object') {
+            departments = Object.values(reviewerData.department);
+          } else if (typeof reviewerData.department === 'string') {
+            departments = [reviewerData.department];
+          }
+        }
+
+        setReviewer({
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName || reviewerData.name,
+          departments,
+          ...reviewerData
+        });
+
+        // Load proposals statistics
+        await loadProposalsStatistics(departments);
+        setError(null);
+      } else {
+        setError("You do not have reviewer privileges. Please contact administrator.");
+        setReviewer(null);
+      }
+    } catch (err) {
+      console.error("Error setting up reviewer:", err);
+      setError("An error occurred while loading reviewer information.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadProposalsStatistics = async (departments) => {
+    try {
+      setRefreshing(true);
+      
+      if (!departments || departments.length === 0) {
+        console.warn("No departments assigned to reviewer");
+        setStatistics(prev => ({
+          ...prev,
+          pending: 0,
+          approved: 0,
+          rejected: 0,
+          departments
+        }));
+        return;
+      }
+
+      const proposals = await getReviewerProposals(departments);
+      
+      setStatistics({
+        pending: proposals.filter(p => p.status?.toLowerCase() === "pending" || !p.status).length,
+        approved: proposals.filter(p => p.status?.toLowerCase() === "approved").length,
+        rejected: proposals.filter(p => p.status?.toLowerCase() === "rejected").length,
+        departments
+      });
+    } catch (error) {
+      console.error("Error loading proposals:", error);
+      setError("Failed to load proposal statistics. Please try again.");
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (reviewer) {
+      await loadProposalsStatistics(reviewer.departments);
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        try {
-          // Check if user is a reviewer
-          const reviewerCheck = await isUserReviewer(user.uid);
-          
-          if (reviewerCheck) {
-            // Get reviewer info
-            const reviewerData = await getReviewerInfo(user.uid);
-            setReviewer({
-              uid: user.uid,
-              email: user.email,
-              displayName: user.displayName || reviewerData.name,
-              ...reviewerData
-            });
-            setError(null);
-          } else {
-            setError("You do not have reviewer privileges. Please contact administrator.");
-            setReviewer(null);
-          }
-        } catch (err) {
-          console.error("Error setting up reviewer:", err);
-          setError("An error occurred while loading reviewer information.");
-        }
-        
-        setLoading(false);
+        await loadReviewerData(user);
       } else {
         setReviewer(null);
         setError("Please log in to access the reviewer dashboard.");
         setLoading(false);
-        
-        // Redirect to login
-        // router.push("/login");
       }
     });
 
     return () => unsubscribe();
-  }, [router]);
+  }, []);
 
   return (
     <div className="h-screen overflow-y-auto bg-gray-900">
@@ -87,17 +150,34 @@ export default function ReviewerDashboardContent({ onNavigate }) {
           <>
             {/* Welcome Message */}
             <div className="bg-gray-800 p-6 rounded-lg shadow-lg mb-8">
-              <h2 className="text-xl font-semibold text-white mb-2">Welcome, {reviewer?.displayName || "Reviewer"}!</h2>
-              <p className="text-gray-300 mb-4">
-                You can review proposals for the following departments:
-              </p>
-              
-              <div className="flex flex-wrap gap-2 mt-2">
-                {reviewer?.departments?.map((dept, index) => (
-                  <span key={index} className="bg-blue-900/60 text-blue-200 px-3 py-1 rounded-full text-sm">
-                    {dept}
-                  </span>
-                ))}
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-xl font-semibold text-white mb-2">
+                    Welcome, {reviewer?.displayName || "Reviewer"}!
+                  </h2>
+                  <p className="text-gray-300 mb-4">
+                    You can review proposals for the following departments:
+                  </p>
+                  
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {statistics.departments?.map((dept, index) => (
+                      <span 
+                        key={index} 
+                        className="bg-blue-900/60 text-blue-200 px-3 py-1 rounded-full text-sm"
+                      >
+                        {dept}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-md text-sm text-white disabled:opacity-50"
+                >
+                  <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
+                  {refreshing ? "Refreshing..." : "Refresh Data"}
+                </button>
               </div>
             </div>
 
@@ -114,7 +194,7 @@ export default function ReviewerDashboardContent({ onNavigate }) {
                   </div>
                 </div>
                 <p className="text-gray-300 text-sm">
-                  Review pending proposals from your assigned departments.
+                  {statistics.pending} proposals awaiting your review
                 </p>
               </div>
               
@@ -129,38 +209,58 @@ export default function ReviewerDashboardContent({ onNavigate }) {
                   </div>
                 </div>
                 <p className="text-gray-300 text-sm">
-                  Access all proposals you've previously reviewed.
+                  {statistics.approved + statistics.rejected} proposals reviewed
                 </p>
               </div>
             </div>
 
             {/* Stats Overview */}
             <div className="bg-gray-800 p-6 rounded-lg shadow-lg mb-8">
-              <h2 className="text-xl font-semibold text-white mb-4">Review Status Overview</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-white">Review Status Overview</h2>
+                <span className="text-sm text-gray-400">
+                  Last updated: {new Date().toLocaleTimeString()}
+                </span>
+              </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-gray-700 p-4 rounded-lg">
+                <div className="bg-gray-700 p-4 rounded-lg hover:bg-gray-600 transition">
                   <div className="flex items-center mb-2">
                     <Clock size={20} className="text-yellow-400 mr-2" />
                     <h3 className="text-gray-200 font-medium">Pending Review</h3>
                   </div>
-                  <p className="text-2xl font-bold text-yellow-400">-</p>
+                  <p className="text-2xl font-bold text-yellow-400">
+                    {statistics.pending}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Across {statistics.departments.length} department(s)
+                  </p>
                 </div>
                 
-                <div className="bg-gray-700 p-4 rounded-lg">
+                <div className="bg-gray-700 p-4 rounded-lg hover:bg-gray-600 transition">
                   <div className="flex items-center mb-2">
                     <CheckCircle size={20} className="text-green-400 mr-2" />
                     <h3 className="text-gray-200 font-medium">Approved</h3>
                   </div>
-                  <p className="text-2xl font-bold text-green-400">-</p>
+                  <p className="text-2xl font-bold text-green-400">
+                    {statistics.approved}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {statistics.approved === 0 ? "No approvals yet" : "Your approved proposals"}
+                  </p>
                 </div>
                 
-                <div className="bg-gray-700 p-4 rounded-lg">
+                <div className="bg-gray-700 p-4 rounded-lg hover:bg-gray-600 transition">
                   <div className="flex items-center mb-2">
                     <XCircle size={20} className="text-red-400 mr-2" />
                     <h3 className="text-gray-200 font-medium">Rejected</h3>
                   </div>
-                  <p className="text-2xl font-bold text-red-400">-</p>
+                  <p className="text-2xl font-bold text-red-400">
+                    {statistics.rejected}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {statistics.rejected === 0 ? "No rejections yet" : "Proposals not approved"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -193,7 +293,7 @@ export default function ReviewerDashboardContent({ onNavigate }) {
             </div>
           </>
         )}
-        <div className="h-16"></div> {/* Adds some space at the bottom for better scrolling */}
+        <div className="h-16"></div>
       </div>
     </div>
   );
