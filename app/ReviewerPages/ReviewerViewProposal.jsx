@@ -1,48 +1,43 @@
 "use client";
-
+import { query, orderBy } from "firebase/firestore";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { 
-  CheckCircle, 
-  XCircle, 
-  AlertCircle, 
-  Clock, 
-  Calendar, 
-  Users,  
-  Filter, 
+import { auth, db } from "@/app/firebase/config";
+import { onAuthStateChanged } from "firebase/auth";
+import { collection, doc, getDoc, getDocs } from "firebase/firestore"; 
+import {
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Clock,
+  Calendar,
   MessageSquare,
-  ChevronDown, 
+  ChevronDown,
   ChevronUp,
   User,
   Target,
   Layers,
-  ArrowLeft,
-  History,
   Send,
-  RefreshCw,
   ThumbsUp,
   ThumbsDown,
-  AlertTriangle,
   File,
   FileText,
-  PenTool
+  PenTool,
+  IndianRupee,
+  Users2
 } from "lucide-react";
 import {
-  db,
-  getReviewerInfo, 
-  getReviewerProposals, 
-  updateProposalStatus,
+  getReviewerProposals,
   updateProposalStatusReviewer
 } from "../firebase/config";
-import { collection, query, getDocs, doc, getDoc } from "firebase/firestore";
 
-export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
+export default function ReviewerProposalViewContent({ onBack, filterStatus = "all" }) {
   const [proposals, setProposals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [reviewer, setReviewer] = useState(null);
   const [error, setError] = useState(null);
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState(filterStatus);
   const [expandedProposal, setExpandedProposal] = useState(null);
   const [reviewComment, setReviewComment] = useState("");
   const [reviewStatus, setReviewStatus] = useState("Approved");
@@ -58,7 +53,27 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
   
   const commentInputRef = useRef(null);
   const router = useRouter();
-  const auth = getAuth();
+
+  const handleLogout = () => {
+    //console.log("Logging out...");
+    router.push("/");
+  };
+
+  // Set filter when filterStatus prop changes
+  useEffect(() => {
+    if (filterStatus) {
+      setFilter(filterStatus);
+    }
+  }, [filterStatus]);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    setTimeout(() => {
+      window.location.reload(); // Refresh the page
+    }, 1000); // Optional: 1 second delay for UX
+  };
+
+  const [refreshing, setRefreshing] = useState(false);
 
   const directQueryProposals = async (departments) => {
     try {
@@ -73,7 +88,8 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
           ...data
         });
       });
-      
+
+  
       const matchingProposals = allProposals.filter(proposal => {
         return departments.includes(proposal.department);
       });
@@ -85,46 +101,46 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
     }
   };
 
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
+      if (!user) {
+        console.log("No user found, redirecting to login");
+        router.push("/login");
+        return;
+      }
+
+      try {
+        // First check session storage for values from the login page
+        const sessionAuth = sessionStorage.getItem("auth");
+        const isUser = sessionStorage.getItem("user");
+        const role = sessionStorage.getItem("role");
+        const name = sessionStorage.getItem("name");
+        let departments = [];
+        
         try {
-          const reviewerRef = doc(db, "Reviewers", user.uid);
-          const reviewerDoc = await getDoc(reviewerRef);
-          
-          if (!reviewerDoc.exists()) {
-            setError("You don't have reviewer privileges. Please contact the administrator.");
-            setLoading(false);
-            return;
+          const departmentsStr = sessionStorage.getItem("departments");
+          if (departmentsStr) {
+            departments = JSON.parse(departmentsStr);
           }
+        } catch (e) {
+          console.error("Error parsing departments:", e);
+        }
+        
+        // Check if user is already authenticated via session storage
+        if (isUser === "true" && role && role.toLowerCase() === "reviewer") {
+          console.log("User authenticated via session storage");
           
-          const reviewerData = reviewerDoc.data();
-          
-          let departments = [];
-          
-          if (reviewerData.department) {
-            if (Array.isArray(reviewerData.department)) {
-              departments = reviewerData.department;
-            } else if (typeof reviewerData.department === 'object') {
-              departments = Object.values(reviewerData.department);
-            } else if (typeof reviewerData.department === 'string') {
-              departments = [reviewerData.department];
-            }
-          }
-          
-          if (!departments || departments.length === 0) {
-            setError("No departments are assigned to your reviewer account.");
-            setLoading(false);
-            return;
-          }
-          
-          setReviewer({
+          // Create reviewer data from session storage
+          const reviewerData = {
             uid: user.uid,
             email: user.email,
-            displayName: user.displayName || reviewerData.name,
-            departments: departments,
-            ...reviewerData
-          });
+            displayName: name || "Reviewer",
+            name: name || "Reviewer",
+            departments: departments || []
+          };
+          
+          setReviewer(reviewerData);
           
           try {
             const directResults = await directQueryProposals(departments);
@@ -150,31 +166,131 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
             setError("Failed to fetch proposals: " + queryErr.message);
           }
           
-        } catch (err) {
-          console.error("Error loading reviewer data:", err);
-          setError("Failed to load reviewer information: " + err.message);
-        } finally {
           setLoading(false);
+          return;
         }
-      } else {
-        setReviewer(null);
-        setError("You must be logged in as a reviewer to view proposals.");
+        
+        // Fallback to Firestore check if session storage doesn't have valid data
+        console.log("Checking Firestore for reviewer data");
+        const reviewerRef = doc(db, "Reviewers", user.uid);
+        const reviewerDoc = await getDoc(reviewerRef);
+        
+        if (!reviewerDoc.exists()) {
+          throw new Error("You don't have reviewer privileges. Please contact the administrator.");
+        }
+        
+        const reviewerData = reviewerDoc.data();
+        
+        // Process departments properly
+        let userDepartments = reviewerData.department || [];
+        if (!Array.isArray(userDepartments)) {
+          userDepartments = typeof userDepartments === 'object' 
+            ? Object.values(userDepartments) 
+            : [userDepartments];
+        }
+        
+        if (!userDepartments || userDepartments.length === 0) {
+          throw new Error("No departments are assigned to your reviewer account.");
+        }
+        
+        // Prepare session data with standardized role
+        const authSession = {
+          authenticated: true,
+          name: reviewerData.name || "Reviewer",
+          role: "Reviewer", // Standardized to capital R
+          departments: userDepartments
+        };
+
+        // Set both auth formats in session storage for compatibility
+        sessionStorage.setItem("auth", JSON.stringify(authSession));
+        sessionStorage.setItem("user", "true");
+        sessionStorage.setItem("role", "Reviewer");
+        sessionStorage.setItem("name", reviewerData.name || "");
+        sessionStorage.setItem("departments", JSON.stringify(userDepartments));
+        
+        // Set reviewer data
+        setReviewer({
+          uid: user.uid,
+          email: user.email,
+          displayName: reviewerData.name || "Reviewer",
+          name: reviewerData.name || "Reviewer",
+          departments: userDepartments,
+          ...reviewerData
+        });
+        
+        try {
+          const directResults = await directQueryProposals(userDepartments);
+          const fetchedProposals = await getReviewerProposals(userDepartments);
+          
+          setProposals(fetchedProposals);
+          
+          if (directResults.length > 0 && fetchedProposals.length === 0) {
+            setProposals(directResults);
+          }
+          
+          const finalProposals = fetchedProposals.length > 0 ? fetchedProposals : directResults;
+          setStatistics({
+            total: finalProposals.length,
+            pending: finalProposals.filter(p => p.status?.toLowerCase() === "pending" || !p.status).length,
+            approved: finalProposals.filter(p => p.status?.toLowerCase() === "approved").length,
+            rejected: finalProposals.filter(p => p.status?.toLowerCase() === "rejected").length,
+            changes: finalProposals.filter(p => p.status?.toLowerCase() === "reviewed").length
+          });
+          
+        } catch (queryErr) {
+          console.error("Error fetching proposals:", queryErr);
+          setError("Failed to fetch proposals: " + queryErr.message);
+        }
+        
+      } catch (err) {
+        console.error("Authentication error:", err);
+        sessionStorage.removeItem("auth");
+        setError(err.message);
+        router.push("/login");
+      } finally {
         setLoading(false);
       }
     });
 
     return () => unsubscribe();
-  }, [auth]);
+  }, [router]);
+  
+  const fetchProposalHistory = async (proposalId) => {
+    try {
+      const historyRef = collection(db, "Proposals", proposalId, "history");
+      const historyQuery = query(historyRef, orderBy("version", "desc"));
+  
+      const snapshot = await getDocs(historyQuery);
+      return snapshot.docs.map((doc) => doc.data());
+    } catch (error) {
+      console.error("Error fetching proposal history:", error);
+      return [];
+    }
+  };
+  const toggleExpand = async (id) => {
+    //////remove
+    const history = await fetchProposalHistory(id);
+    console.log("Fetched history for proposal", id, history);
 
-  const toggleExpand = (id) => {
     if (expandedProposal === id) {
       setExpandedProposal(null);
       setReviewComment("");
-      setReviewStatus("Approved");
+      setReviewStatus("Reviewed");
     } else {
       setExpandedProposal(id);
       setReviewComment("");
-      setReviewStatus("Approved");
+      setReviewStatus("Reviewed");
+      
+      // Fetch history when expanding
+      try {
+        const history = await fetchProposalHistory(id);
+        setProposals(prev => prev.map(p => 
+          p.id === id ? { ...p, history } : p
+        ));
+      } catch (error) {
+        console.error("Failed to fetch proposal history:", error);
+      }
+  
       setTimeout(() => {
         if (commentInputRef.current) {
           commentInputRef.current.focus();
@@ -182,6 +298,69 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
       }, 100);
     }
   };
+  const CommentItem = ({ comment, reviewer, version }) => {
+    // Explicitly determine if this is a reviewer comment or user comment
+    const isReviewerComment = Boolean(comment.reviewerName);
+    const isUserComment = Boolean(comment.authorName || comment.authorType);
+    
+    // Get appropriate name and set proper styling based on comment type
+    let displayName = "Unknown";
+    let borderColor = "border-gray-500";
+    let nameColor = "text-gray-400";
+    
+    if (isReviewerComment) {
+      // This is a reviewer comment
+      displayName = comment.reviewerName;
+      borderColor = "border-blue-500";
+      nameColor = "text-blue-400";
+      
+      // Check if this is from the current reviewer
+      if (comment.reviewerName === (reviewer?.displayName || reviewer?.name)) {
+        displayName = "You";
+      }
+    } else if (isUserComment) {
+      // This is a user/proposer comment
+      displayName = comment.authorName || "User";
+      borderColor = "border-green-500";
+      nameColor = "text-green-400";
+    }
+    
+    const isCurrentReviewer = isReviewerComment && 
+      comment.reviewerName === (reviewer?.displayName || reviewer?.name);
+    
+    return (
+      <div 
+        className={`bg-gray-800 p-3 rounded border-l-4 ${borderColor} ${
+          isCurrentReviewer ? "ml-auto" : "mr-auto"
+        } max-w-[90%] break-words`}
+      >
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-1 gap-1">
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-medium ${nameColor} truncate`}>
+              {displayName}
+            </span>
+            <span className="text-xs text-gray-500">
+              {version ? `(v${version})` : ""}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500 whitespace-nowrap">
+              {formatTimestamp(comment.timestamp)}
+            </span>
+            {comment.status && (
+              <span className="text-xs text-white">
+                {getStatusBadge(comment.status)}
+              </span>
+            )}
+          </div>
+        </div>
+        <p className="text-sm text-gray-300 whitespace-pre-wrap">
+          {comment.text || "No comment text"}
+        </p>
+      </div>
+    );
+  };
+
 
   const handleSubmitReview = async (proposalId) => {
     if (!reviewComment.trim()) {
@@ -266,7 +445,7 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
       case "rejected":
         return <XCircle size={18} className="text-red-500" />;
       case "reviewed":
-        return <AlertTriangle size={18} className="text-orange-500" />;
+        return <CheckCircle size={18} className="text-blue-500" />;
       case "pending":
       default:
         return <Clock size={18} className="text-yellow-500" />;
@@ -280,7 +459,7 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
       case "rejected":
         return <span className="px-2 py-1 bg-red-600 text-white text-xs rounded-full whitespace-nowrap">Rejected</span>;
       case "reviewed":
-        return <span className="px-2 py-1 bg-orange-600 text-white text-xs rounded-full whitespace-nowrap">Reviewed</span>;
+        return <span className="px-2 py-1 bg-blue-600 text-white text-xs rounded-full whitespace-nowrap">Reviewed</span>;
       case "pending":
       default:
         return <span className="px-2 py-1 bg-yellow-600 text-white text-xs rounded-full whitespace-nowrap">Pending Review</span>;
@@ -290,25 +469,24 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
   const formatTimestamp = (timestamp) => {
     if (!timestamp) return "No date";
     
-    if (timestamp.seconds) {
-      const date = new Date(timestamp.seconds * 1000);
-      return date.toLocaleString();
-    }
-    
-    if (timestamp.toDate) {
-      return timestamp.toDate().toLocaleString();
-    }
-    
-    if (typeof timestamp === 'string') {
+    try {
+      // For Firestore timestamps with seconds property
+      if (timestamp.seconds) {
+        return new Date(timestamp.seconds * 1000).toLocaleString();
+      }
+      
+      // For Firestore timestamps with toDate method
+      if (typeof timestamp.toDate === 'function') {
+        return timestamp.toDate().toLocaleString();
+      }
+      
+      // For ISO strings or other date formats
       const date = new Date(timestamp);
-      return date.toLocaleString();
+      return !isNaN(date.getTime()) ? date.toLocaleString() : "Invalid date";
+    } catch (error) {
+      console.error("Error formatting timestamp:", error);
+      return "Invalid date";
     }
-    
-    if (timestamp instanceof Date) {
-      return timestamp.toLocaleString();
-    }
-    
-    return "Invalid date";
   };
 
   if (loading) {
@@ -326,7 +504,7 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
           <AlertCircle className="h-6 w-6 flex-shrink-0 mt-0.5" />
           <div>
             <h3 className="font-semibold text-white mb-2">Error</h3>
-            <p>{error}</p>
+            <p className="break-words">{error}</p>
             <button 
               onClick={onBack}
               className="mt-4 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-md transition"
@@ -340,106 +518,97 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
   }
 
   return (
-    <div className="pb-10 px-4 sm:pr-6">
-      <br />
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
+    <div className="pb-10 px-4 sm:px-6 max-w-full overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4 pt-4">
         <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-          <FileText className="h-6 w-6" />
-          Proposal Review
+          <FileText className="h-6 w-6 flex-shrink-0" />
+          <span className="truncate">Proposal Review</span>
         </h1>
         
         <div className="flex items-center gap-3">
+          <button
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-md text-sm text-white disabled:opacity-50"
+                >
+                  <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
+                  {refreshing ? "Refreshing..." : "Refresh Data"}
+          </button>
           <button 
-            onClick={onBack}
-            className="flex items-center text-blue-400 hover:text-blue-300 transition whitespace-nowrap"
+            onClick={handleLogout}
+            className="flex items-center gap-2 bg-red-700 hover:bg-red-600 px-3 py-2 rounded-md text-sm text-white disabled:opacity-50"
           >
-            <ArrowLeft size={16} className="mr-1" />
-            Back to dashboard
+            <span className="truncate">Logout</span>
           </button>
         </div>
       </div>
 
       {successMessage && (
-        <div className="bg-green-900/50 border border-green-700 text-green-200 p-4 rounded-md mb-6">
+        <div className="bg-green-900/50 border border-green-700 text-green-200 p-4 rounded-md mb-6 break-words">
           {successMessage}
         </div>
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <div 
-          className={`bg-gray-800 rounded-lg p-4 border ${filter === "all" ? "border-white" : "border-gray-700"} cursor-pointer hover:bg-gray-700 transition`}
+          className={`bg-gray-800 rounded-lg p-4 border ${filter === "all" ? "border-white" : "border-gray-700"} cursor-pointer hover:bg-gray-700 transition min-w-0`}
           onClick={() => setFilter("all")}
         >
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs sm:text-sm text-gray-400">Total</p>
-              <h3 className="text-xl sm:text-2xl font-bold text-white">{statistics.total}</h3>
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm text-gray-400 truncate">View All Proposals</p>
+              <h3 className="text-xl sm:text-2xl font-bold text-white truncate">{statistics.total}</h3>
             </div>
-            <FileText size={20} className="text-blue-500" />
+            <FileText size={20} className="text-blue-500 flex-shrink-0" />
           </div>
         </div>
         
         <div 
-          className={`bg-gray-800 rounded-lg p-4 border ${filter === "pending" ? "border-white" : "border-gray-700"} cursor-pointer hover:bg-gray-700 transition`}
+          className={`bg-gray-800 rounded-lg p-4 border ${filter === "pending" ? "border-white" : "border-gray-700"} cursor-pointer hover:bg-gray-700 transition min-w-0`}
           onClick={() => setFilter("pending")}
         >
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs sm:text-sm text-gray-400">Pending</p>
-              <h3 className="text-xl sm:text-2xl font-bold text-white">{statistics.pending}</h3>
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm text-gray-400 truncate">View Pending Proposals</p>
+              <h3 className="text-xl sm:text-2xl font-bold text-white truncate">{statistics.pending}</h3>
             </div>
-            <Clock size={20} className="text-yellow-500" />
+            <Clock size={20} className="text-yellow-500 flex-shrink-0" />
           </div>
         </div>
         
         <div 
-          className={`bg-gray-800 rounded-lg p-4 border ${filter === "approved" ? "border-white" : "border-gray-700"} cursor-pointer hover:bg-gray-700 transition`}
+          className={`bg-gray-800 rounded-lg p-4 border ${filter === "approved" ? "border-white" : "border-gray-700"} cursor-pointer hover:bg-gray-700 transition min-w-0`}
           onClick={() => setFilter("approved")}
         >
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs sm:text-sm text-gray-400">Approved</p>
-              <h3 className="text-xl sm:text-2xl font-bold text-white">{statistics.approved}</h3>
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm text-gray-400 truncate">View Approved Proposals</p>
+              <h3 className="text-xl sm:text-2xl font-bold text-white truncate">{statistics.approved}</h3>
             </div>
-            <CheckCircle size={20} className="text-green-500" />
+            <CheckCircle size={20} className="text-green-500 flex-shrink-0" />
           </div>
         </div>
         
         <div 
-          className={`bg-gray-800 rounded-lg p-4 border ${filter === "rejected" ? "border-white" : "border-gray-700"} cursor-pointer hover:bg-gray-700 transition`}
+          className={`bg-gray-800 rounded-lg p-4 border ${filter === "rejected" ? "border-white" : "border-gray-700"} cursor-pointer hover:bg-gray-700 transition min-w-0`}
           onClick={() => setFilter("rejected")}
         >
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs sm:text-sm text-gray-400">Rejected</p>
-              <h3 className="text-xl sm:text-2xl font-bold text-white">{statistics.rejected}</h3>
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm text-gray-400 truncate">View Rejected Proposals</p>
+              <h3 className="text-xl sm:text-2xl font-bold text-white truncate">{statistics.rejected}</h3>
             </div>
-            <XCircle size={20} className="text-red-500" />
+            <XCircle size={20} className="text-red-500 flex-shrink-0" />
           </div>
         </div>
       </div>
 
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
-        <div className="flex items-center gap-2">
-          <Filter size={18} className="text-gray-400" />
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="bg-gray-800 border border-gray-700 text-white rounded-md px-3 py-1 text-sm"
-          >
-            <option value="all">All Proposals</option>
-            <option value="pending">Pending Review</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-            <option value="changes">Reviewed</option>
-          </select>
-        </div>
-        
-        <div className="text-sm text-gray-400">
+        <div className="min-w-0">
           {reviewer?.departments?.length > 0 ? (
-            <span>Departments: {reviewer.departments.join(", ")}</span>
+            <span className="text-sm text-gray-400 truncate">Departments: {reviewer.departments.join(", ")}</span>
           ) : (
-            "No assigned departments"
+            <span className="text-sm text-gray-400 truncate">No assigned departments</span>
           )}
         </div>
       </div>
@@ -447,12 +616,12 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
       {filteredProposals.length === 0 ? (
         <div className="bg-gray-800 rounded-lg p-8 text-center">
           <File className="h-12 w-12 mx-auto mb-4 text-gray-500" />
-          <p className="text-gray-400">
+          <p className="text-gray-400 break-words">
             {filter === "all" 
               ? "No proposals found in your assigned departments."
               : `No ${filter} proposals found.`}
           </p>
-          <p className="text-sm text-gray-500 mt-2">
+          <p className="text-sm text-gray-500 mt-2 break-words">
             Make sure your departments match proposal departments.
           </p>
         </div>
@@ -467,31 +636,33 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
                 className="p-4 cursor-pointer flex justify-between items-center"
                 onClick={() => toggleExpand(proposal.id)}
               >
-                <div className="flex items-center gap-3 overflow-hidden">
-                  {getStatusIcon(proposal.status)}
-                  <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex-shrink-0">
+                    {getStatusIcon(proposal.status)}
+                  </div>
+                  <div className="min-w-0">
                     <h3 className="font-medium text-white truncate">{proposal.title || "Untitled Proposal"}</h3>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-400 mt-1">
                       <span className="flex items-center whitespace-nowrap">
-                        <Calendar size={12} className="mr-1" />
-                        {formatTimestamp(proposal.createdAt)}
+                        <Calendar size={12} className="mr-1 flex-shrink-0" />
+                        <span className="truncate">{formatTimestamp(proposal.createdAt)}</span>
                       </span>
                       {proposal.department && (
                         <span className="flex items-center whitespace-nowrap">
-                          <Layers size={12} className="mr-1" />
-                          {proposal.department}
+                          <Layers size={12} className="mr-1 flex-shrink-0" />
+                          <span className="truncate">{proposal.department}</span>
                         </span>
                       )}
                       {proposal.proposerName && (
                         <span className="flex items-center whitespace-nowrap">
-                          <User size={12} className="mr-1" />
-                          {proposal.proposerName}
+                          <User size={12} className="mr-1 flex-shrink-0" />
+                          <span className="truncate">{proposal.proposerName}</span>
                         </span>
                       )}
                       {proposal.duration && (
                         <span className="flex items-center whitespace-nowrap">
-                          <Clock size={12} className="mr-1" />
-                          {proposal.duration}
+                          <Clock size={12} className="mr-1 flex-shrink-0" />
+                          <span className="truncate">{proposal.duration}</span>
                         </span>
                       )}
                     </div>
@@ -499,13 +670,13 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
                 </div>
                 
                 <div className="flex items-center gap-3 ml-2">
-                  <div className="hidden sm:block text-sm text-gray-300">
+                  <div className="hidden sm:block text-sm text-white">
                     {getStatusBadge(proposal.status)}
                   </div>
                   {expandedProposal === proposal.id ? (
-                    <ChevronUp size={18} className="text-gray-400" />
+                    <ChevronUp size={18} className="text-gray-400 flex-shrink-0" />
                   ) : (
-                    <ChevronDown size={18} className="text-gray-400" />
+                    <ChevronDown size={18} className="text-gray-400 flex-shrink-0" />
                   )}
                 </div>
               </div>
@@ -513,10 +684,10 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
               {expandedProposal === proposal.id && (
                 <div className="border-t border-gray-700 p-4">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="space-y-4">
+                    <div className="space-y-4 min-w-0">
                       <div>
                         <h4 className="text-sm font-medium text-gray-300 mb-2">Description:</h4>
-                        <p className="text-sm text-gray-400 bg-gray-700 p-3 rounded">
+                        <p className="text-sm text-gray-400 bg-gray-700 p-3 rounded break-words whitespace-pre-wrap">
                           {proposal.description || "No description provided"}
                         </p>
                       </div>
@@ -526,23 +697,23 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
                         
                         <div className="space-y-3">
                           {proposal.objectives && (
-                            <div>
+                            <div className="break-words">
                               <h5 className="text-xs font-medium text-gray-400">Objectives:</h5>
-                              <p className="text-sm text-gray-300">{proposal.objectives}</p>
+                              <p className="text-sm text-gray-300 whitespace-pre-wrap">{proposal.objectives}</p>
                             </div>
                           )}
                           
                           {proposal.outcomes && (
-                            <div>
+                            <div className="break-words">
                               <h5 className="text-xs font-medium text-gray-400">Expected Outcomes:</h5>
-                              <p className="text-sm text-gray-300">{proposal.outcomes}</p>
+                              <p className="text-sm text-gray-300 whitespace-pre-wrap">{proposal.outcomes}</p>
                             </div>
                           )}
                           
                           {proposal.participantEngagement && (
-                            <div>
+                            <div className="break-words">
                               <h5 className="text-xs font-medium text-gray-400">Participant Engagement:</h5>
-                              <p className="text-sm text-gray-300">{proposal.participantEngagement}</p>
+                              <p className="text-sm text-gray-300 whitespace-pre-wrap">{proposal.participantEngagement}</p>
                             </div>
                           )}
                         </div>
@@ -551,80 +722,144 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
                       <div className="bg-gray-700 p-4 rounded">
                         <h4 className="text-sm font-medium text-gray-300 mb-3">Additional Information:</h4>
                         
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3">
                           {proposal.targetAudience && (
-                            <div className="col-span-2">
+                            <div className="col-span-1 break-words">
                               <h5 className="text-xs font-medium text-gray-400 flex items-center gap-1">
                                 <Target size={14} /> Target Audience
                               </h5>
-                              <p className="text-sm text-gray-300">{proposal.targetAudience}</p>
+                              <p className="text-sm text-gray-300 whitespace-pre-wrap">{proposal.targetAudience}</p>
                             </div>
                           )}
                           
                           {proposal.duration && (
-                            <div>
+                            <div className="break-words">
                               <h5 className="text-xs font-medium text-gray-400">Duration:</h5>
-                              <p className="text-sm text-gray-300">{proposal.duration}</p>
+                              <p className="text-sm text-gray-300 whitespace-pre-wrap">{proposal.duration}</p>
                             </div>
                           )}
                           
                           {proposal.registrationFee !== undefined && (
-                            <div>
+                            <div className="break-words">
                               <h5 className="text-xs font-medium text-gray-400">Registration Fee:</h5>
-                              <p className="text-sm text-gray-300">₹{proposal.registrationFee || "Free"}</p>
+                              <p className="text-sm text-gray-300 whitespace-pre-wrap flex items-center">
+                                <IndianRupee size={14} className="mr-1" />
+                                {proposal.registrationFee || "Free"}
+                              </p>
                             </div>
                           )}
                           
                           {proposal.maxSeats && (
-                            <div>
+                            <div className="break-words">
                               <h5 className="text-xs font-medium text-gray-400">Maximum Seats:</h5>
-                              <p className="text-sm text-gray-300">{proposal.maxSeats}</p>
+                              <p className="text-sm text-gray-300 whitespace-pre-wrap">{proposal.maxSeats}</p>
                             </div>
                           )}
                           
                           {proposal.estimatedBudget && (
-                            <div>
+                            <div className="break-words">
                               <h5 className="text-xs font-medium text-gray-400">Estimated Budget:</h5>
-                              <p className="text-sm text-gray-300">₹{proposal.estimatedBudget}</p>
+                              <p className="text-sm text-gray-300 whitespace-pre-wrap flex items-center">
+                                <IndianRupee size={14} className="mr-1" />
+                                {proposal.estimatedBudget}
+                              </p>
                             </div>
                           )}
                           
                           {proposal.potentialFundingSource && (
-                            <div>
+                            <div className="break-words">
                               <h5 className="text-xs font-medium text-gray-400">Funding Source:</h5>
-                              <p className="text-sm text-gray-300">{proposal.potentialFundingSource}</p>
+                              <p className="text-sm text-gray-300 whitespace-pre-wrap">{proposal.potentialFundingSource}</p>
                             </div>
                           )}
                           
                           {proposal.resourcePersonDetails && (
-                            <div>
+                            <div className="break-words">
                               <h5 className="text-xs font-medium text-gray-400">Resource Person:</h5>
-                              <p className="text-sm text-gray-300">{proposal.resourcePersonDetails}</p>
+                              <p className="text-sm text-gray-300 whitespace-pre-wrap">{proposal.resourcePersonDetails}</p>
                             </div>
                           )}
                           
                           {proposal.externalResources && (
-                            <div>
+                            <div className="break-words">
                               <h5 className="text-xs font-medium text-gray-400">External Resources:</h5>
-                              <p className="text-sm text-gray-300">{proposal.externalResources}</p>
+                              <p className="text-sm text-gray-300 whitespace-pre-wrap">{proposal.externalResources}</p>
                             </div>
                           )}
-                          
-                          <div>
-                            <h5 className="text-xs font-medium text-gray-400">Type:</h5>
+
+                          {proposal.additionalRequirements && (
+                            <div className="col-span-1 break-words">
+                              <h5 className="text-xs font-medium text-gray-400">Additional Requirements:</h5>
+                              <p className="text-sm text-gray-300 whitespace-pre-wrap">{proposal.additionalRequirements}</p>
+                            </div>
+                          )}
+
+                          {/* Group Details Section */}
+                          {!proposal.isIndividual && proposal.groupDetails && (
+                            <div className="col-span-1 break-words bg-gray-800 p-3 rounded">
+                              <h5 className="text-xs font-medium text-gray-400 flex items-center gap-1">
+                                <Users2 size={14} /> Group Registration Details
+                              </h5>
+                              <div className="grid grid-cols-2 gap-2 mt-2">
+                                <div>
+                                  <p className="text-xs text-gray-500">Max Members:</p>
+                                  <p className="text-sm text-gray-300">{proposal.groupDetails.maxGroupMembers || 'Not specified'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500">Fee Type:</p>
+                                  <p className="text-sm text-gray-300 capitalize">
+                                    {proposal.groupDetails.feeType === 'perhead' ? 'Per Head' : 'Per Group'}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Preferred Days Section */}
+                          {proposal.preferredDays && (
+                            <div className="col-span-1 break-words bg-gray-800 p-3 rounded">
+                              <h5 className="text-xs font-medium text-gray-400 flex items-center gap-1">
+                                <Calendar size={14} /> Preferred Schedule
+                              </h5>
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
+                                {proposal.preferredDays.day1 && (
+                                  <div>
+                                    <p className="text-xs text-gray-500">Day 1:</p>
+                                    <p className="text-sm text-gray-300">{proposal.preferredDays.day1}</p>
+                                  </div>
+                                )}
+                                {proposal.preferredDays.day2 && (
+                                  <div>
+                                    <p className="text-xs text-gray-500">Day 2:</p>
+                                    <p className="text-sm text-gray-300">{proposal.preferredDays.day2}</p>
+                                  </div>
+                                )}
+                                {proposal.preferredDays.day3 && (
+                                  <div>
+                                    <p className="text-xs text-gray-500">Day 3:</p>
+                                    <p className="text-sm text-gray-300">{proposal.preferredDays.day3}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Event Type Badges */}
+                          <div className="col-span-1 break-words">
+                            <h5 className="text-xs font-medium text-gray-400">Event Details:</h5>
                             <div className="flex flex-wrap gap-2 mt-1">
                               {proposal.isEvent !== undefined && (
-                                <span className="px-2 py-0.5 bg-gray-600 text-gray-300 text-xs rounded-full">
+                                <span className="px-2 py-0.5 bg-gray-600 text-gray-300 text-xs rounded-full whitespace-nowrap">
                                   {proposal.isEvent ? "Event" : "Workshop"}
                                 </span>
                               )}
                               {proposal.isTechnical !== undefined && (
-                                <span className="px-2 py-0.5 bg-gray-600 text-gray-300 text-xs rounded-full">
+                                <span className="px-2 py-0.5 bg-gray-600 text-gray-300 text-xs rounded-full whitespace-nowrap">
                                   {proposal.isTechnical ? "Technical" : "Non-Technical"}
                                 </span>
                               )}
                               {proposal.isIndividual !== undefined && (
-                                <span className="px-2 py-0.5 bg-gray-600 text-gray-300 text-xs rounded-full">
+                                <span className="px-2 py-0.5 bg-gray-600 text-gray-300 text-xs rounded-full whitespace-nowrap">
                                   {proposal.isIndividual ? "Individual" : "Group"}
                                 </span>
                               )}
@@ -633,50 +868,80 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
                         </div>
                       </div>
                     </div>
-                    
-                    <div className="space-y-4">
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-300 mb-2 flex items-center">
-                          <MessageSquare size={16} className="mr-1" />
-                          Previous Comments:
-                        </h4>
-                        
-                        {proposal.comments && proposal.comments.length > 0 ? (
+
+                    <div className="space-y-4 min-w-0">
+                       {/* Debug logs - Add these lines */}
+                        {console.log('Current proposal:', proposal)}
+                        {console.log('Current comments:', proposal.comments)}
+                        {console.log('History data:', proposal.history)}
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-300 mb-2 flex items-center">
+                            <MessageSquare size={16} className="mr-1 flex-shrink-0" />
+                            <span>All Comments:</span>
+                          </h4>
+                          
                           <div className="bg-gray-700 p-4 rounded max-h-60 overflow-y-auto space-y-3">
-                            {proposal.comments.map((comment, idx) => (
-                              <div key={idx} className="bg-gray-800 p-3 rounded border-l-4 border-blue-500">
-                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-1 gap-1">
-                                  <span className="text-xs font-medium text-blue-400">
-                                    {comment.reviewerName || "Reviewer"}
-                                  </span>
-                                  <span className="text-xs text-gray-500">
-                                    {formatTimestamp(comment.timestamp)}
-                                  </span>
+                            {/* Current version comments */}
+                            {proposal.comments && proposal.comments.length > 0 ? (
+                              <>
+                                <div className="text-xs text-gray-500 mb-2 px-2 py-1 bg-gray-800 rounded-full w-fit">
+                                  Current Version
                                 </div>
-                                <p className="text-sm text-gray-300">
-                                  {comment.text || "No comment text"}
-                                </p>
-                                {comment.status && (
-                                  <div className="mt-2 text-xs">
-                                    Status: {getStatusBadge(comment.status)}
+                                {proposal.comments.map((comment, idx) => (
+                                  <CommentItem 
+                                    key={`current-${idx}`}
+                                    comment={comment}
+                                    reviewer={reviewer}
+                                  />
+                                ))}
+                              </>
+                            ) : null}
+                            
+                            {/* Historical version comments */}
+                            {proposal.history && proposal.history
+                              .filter(version => version.comments && version.comments.length > 0)
+                              .sort((a, b) => {
+                                // Sort by version number (newest first)
+                                if (a.version && b.version) {
+                                  return b.version - a.version;
+                                }
+                                // Fallback to timestamp if version is not available
+                                const timeA = a.timestamp?.seconds ? a.timestamp.seconds * 1000 : 
+                                            a.timestamp ? new Date(a.timestamp).getTime() : 0;
+                                const timeB = b.timestamp?.seconds ? b.timestamp.seconds * 1000 : 
+                                            b.timestamp ? new Date(b.timestamp).getTime() : 0;
+                                return timeB - timeA;
+                              })
+                              .map((version) => (
+                                <div key={`version-${version.version}`}>
+                                  <div className="text-xs text-gray-500 mt-4 mb-2 px-2 py-1 bg-gray-800 rounded-full w-fit">
+                                    Version {version.version} ({formatTimestamp(version.timestamp)})
                                   </div>
-                                )}
-                              </div>
-                            ))}
+                                  {version.comments.map((comment, idx) => (
+                                    <CommentItem
+                                      key={`v${version.version}-${idx}`}
+                                      comment={comment}
+                                      reviewer={reviewer}
+                                      version={version.version}
+                                    />
+                                  ))}
+                                </div>
+                              ))}
+                            
+                            {/* No comments message */}
+                            {(!proposal.comments || proposal.comments.length === 0) && 
+                            (!proposal.history || !proposal.history.some(v => v.comments && v.comments.length > 0)) && (
+                              <p className="text-sm text-gray-500 italic break-words">
+                                No comments found in the current version.
+                              </p>
+                            )}
                           </div>
-                        ) : (
-                          <div className="bg-gray-700 p-4 rounded">
-                            <p className="text-sm text-gray-500 italic">
-                              No previous comments found.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                      
+                        </div>
+
                       <div className="bg-gray-700 p-4 rounded">
                         <h4 className="text-sm font-medium text-gray-300 mb-3 flex items-center">
-                          <PenTool size={16} className="mr-1" />
-                          Add Review:
+                          <PenTool size={16} className="mr-1 flex-shrink-0" />
+                          <span>Add Review:</span>
                         </h4>
                         
                         <div className="space-y-3">
@@ -688,14 +953,27 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
                               <button
                                 type="button"
                                 className={`flex items-center justify-center px-3 py-2 rounded-md text-sm ${
+                                  reviewStatus === "Reviewed" 
+                                    ? "bg-blue-700 text-white" 
+                                    : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                                } whitespace-nowrap`}
+                                onClick={() => setReviewStatus("Reviewed")}
+                              >
+                                <RefreshCw size={14} className="mr-1 flex-shrink-0" />
+                                <span>Request Changes</span>
+                              </button>
+                              
+                              <button
+                                type="button"
+                                className={`flex items-center justify-center px-3 py-2 rounded-md text-sm ${
                                   reviewStatus === "Approved" 
                                     ? "bg-green-700 text-white" 
                                     : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                                }`}
+                                } whitespace-nowrap`}
                                 onClick={() => setReviewStatus("Approved")}
                               >
-                                <ThumbsUp size={14} className="mr-1" />
-                                Approve
+                                <ThumbsUp size={14} className="mr-1 flex-shrink-0" />
+                                <span>Approve</span>
                               </button>
                               
                               <button
@@ -704,24 +982,11 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
                                   reviewStatus === "Rejected" 
                                     ? "bg-red-700 text-white" 
                                     : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                                }`}
+                                } whitespace-nowrap`}
                                 onClick={() => setReviewStatus("Rejected")}
                               >
-                                <ThumbsDown size={14} className="mr-1" />
-                                Reject
-                              </button>
-                              
-                              <button
-                                type="button"
-                                className={`flex items-center justify-center px-3 py-2 rounded-md text-sm ${
-                                  reviewStatus === "Reviewed" 
-                                    ? "bg-orange-700 text-white" 
-                                    : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                                }`}
-                                onClick={() => setReviewStatus("Reviewed")}
-                              >
-                                <RefreshCw size={14} className="mr-1" />
-                                Request Changes
+                                <ThumbsDown size={14} className="mr-1 flex-shrink-0" />
+                                <span>Reject</span>
                               </button>
                             </div>
                           </div>
@@ -735,10 +1000,10 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
                               value={reviewComment}
                               onChange={(e) => setReviewComment(e.target.value)}
                               placeholder="Enter your review comments here..."
-                              className="w-full p-3 bg-gray-800 border border-gray-600 rounded-md text-white text-sm min-h-24"
+                              className="w-full p-3 bg-gray-800 border border-gray-600 rounded-md text-white text-sm min-h-24 break-words whitespace-pre-wrap"
                               required
                             ></textarea>
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-xs text-gray-500 mt-1 break-words">
                               Please provide detailed feedback, especially if rejecting or requesting changes.
                             </p>
                           </div>
@@ -748,17 +1013,17 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus }) {
                               type="button"
                               onClick={() => handleSubmitReview(proposal.id)}
                               disabled={isSubmitting || !reviewComment.trim()}
-                              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-md py-2 flex items-center justify-center gap-2 transition"
+                              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-md py-2 flex items-center justify-center gap-2 transition whitespace-nowrap"
                             >
                               {isSubmitting ? (
                                 <>
-                                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                                  Submitting...
+                                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full flex-shrink-0"></div>
+                                  <span>Submitting...</span>
                                 </>
                               ) : (
                                 <>
-                                  <Send size={16} />
-                                  Submit Review
+                                  <Send size={16} className="flex-shrink-0" />
+                                  <span>Submit Review</span>
                                 </>
                               )}
                             </button>

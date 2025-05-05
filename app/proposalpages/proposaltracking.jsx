@@ -20,9 +20,10 @@ import {
   User,
   Target,
   Layers,
-  Settings
+  Settings,
+  Send
 } from "lucide-react";
-import { collection, getDocs, query, where, doc, getDoc, orderBy } from "firebase/firestore";
+import { collection, getDocs, query, where, doc, getDoc, orderBy, updateDoc, arrayUnion, serverTimestamp } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { db } from "../firebase/config";
 import { useRouter } from "next/navigation";
@@ -41,6 +42,8 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
   const [singleProposalView, setSingleProposalView] = useState(false);
   const [loadedVersions, setLoadedVersions] = useState({});
   const [versionsLoading, setVersionsLoading] = useState({});
+  const [newReply, setNewReply] = useState("");
+  const [replyingProposalId, setReplyingProposalId] = useState(null);
   
   const auth = getAuth();
   const router = useRouter();
@@ -66,11 +69,41 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
     }
   };
 
-  const handleBackToAll = () => {
-    if (onBack) {
-      onBack();
-    } else {
-      router.push("/proposaltracking");
+  const submitReply = async (proposalId) => {
+    if (!newReply.trim()) return;
+    
+    try {
+      const proposalRef = doc(db, "Proposals", proposalId);
+      const replyData = {
+        text: newReply,
+        timestamp: new Date(),
+        authorId: auth.currentUser.uid,
+        authorName: auth.currentUser.displayName || "Proposer",
+        authorType: "proposer",
+        version: proposals.find(p => p.id === proposalId)?.version || 1
+      };
+      
+      await updateDoc(proposalRef, {
+        comments: arrayUnion(replyData),
+        updatedAt: serverTimestamp()
+      });
+      
+      // Refresh the proposal data
+      const updatedProposal = await getDoc(proposalRef);
+      setProposals(prev => prev.map(p => 
+        p.id === proposalId ? { 
+          ...p, 
+          comments: [...(p.comments || []), replyData],
+          versionDetails: p.versionDetails?.map((v, i) => 
+            i === 0 ? { ...v, comments: [...(v.comments || []), replyData] } : v
+          )
+        } : p
+      ));
+      
+      setNewReply("");
+      setReplyingProposalId(null);
+    } catch (error) {
+      console.error("Error submitting reply:", error);
     }
   };
 
@@ -81,11 +114,11 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
         setLoading(false);
         return;
       }
-
+    
       try {
         setLoading(true);
         let fetchedProposals = [];
-
+    
         if (proposalId) {
           setSingleProposalView(true);
           const proposalRef = doc(db, "Proposals", proposalId);
@@ -98,54 +131,44 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
           
           const proposalData = {
             id: proposalSnap.id,
-            ...proposalSnap.data()
+            ...proposalSnap.data(),
+            comments: proposalSnap.data().comments || []
           };
-
+    
           // Fetch version history
           const historyQuery = query(
             collection(db, "Proposals", proposalId, "History"),
-            orderBy("updatedAt", "desc")
+            orderBy("version", "desc")
           );
           const historySnapshot = await getDocs(historyQuery);
           
           let versionDetails = [];
-          let proposalThread = [];
           
           historySnapshot.forEach(doc => {
             const historyData = doc.data();
             versionDetails.push({
-              ...historyData.proposalThread,
               version: historyData.version || "1",
               timestamp: historyData.updatedAt,
               updatedBy: historyData.updatedBy || "System",
-              status: "Reviewed",
+              status: historyData.proposalThread?.status || "Reviewed",
               remarks: historyData.remarks || "Proposal updated",
-              comments: historyData.comments || []
-            });
-            
-            proposalThread.push({
-              status: "Reviewed",
-              timestamp: historyData.updatedAt,
-              updatedBy: historyData.updatedBy || "System",
-              remarks: historyData.remarks || "Proposal updated",
-              version: historyData.version,
-              comments: historyData.comments || []
+              comments: historyData.comments || [],
+              ...historyData.proposalThread
             });
           });
-
-          // Add current version as the first item - preserving original status
+    
+          // Add current version as the first item
           versionDetails.unshift({
             ...proposalData,
             version: proposalData.version || "1",
             timestamp: proposalData.updatedAt || proposalData.createdAt,
             updatedBy: proposalData.updatedBy || "You",
-            status: proposalData.status, // Keep original status from DB
+            status: proposalData.status,
             remarks: "Current version",
-            comments: proposalData.comments || []
+            comments: proposalData.comments
           });
-
+    
           proposalData.versionDetails = versionDetails;
-          proposalData.proposalThread = proposalThread;
           fetchedProposals = [proposalData];
           
           setExpandedProposal(proposalId);
@@ -159,57 +182,47 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
           const proposalPromises = querySnapshot.docs.map(async (doc) => {
             const proposalData = {
               id: doc.id,
-              ...doc.data()
+              ...doc.data(),
+              comments: doc.data().comments || []
             };
-
+    
             // Fetch version history for each proposal
             const historyQuery = query(
               collection(db, "Proposals", doc.id, "History"),
-              orderBy("updatedAt", "desc")
+              orderBy("version", "desc")
             );
             const historySnapshot = await getDocs(historyQuery);
             
             let versionDetails = [];
-            let proposalThread = [];
             
             historySnapshot.forEach(historyDoc => {
               const historyData = historyDoc.data();
               versionDetails.push({
-                ...historyData.proposalThread,
                 version: historyData.version || "1",
                 timestamp: historyData.updatedAt,
                 updatedBy: historyData.updatedBy || "System",
-                status: "Reviewed",
+                status: historyData.proposalThread?.status || "Reviewed",
                 remarks: historyData.remarks || "Proposal updated",
-                comments: historyData.comments || []
-              });
-              
-              proposalThread.push({
-                status: "Reviewed",
-                timestamp: historyData.updatedAt,
-                updatedBy: historyData.updatedBy || "System",
-                remarks: historyData.remarks || "Proposal updated",
-                version: historyData.version,
-                comments: historyData.comments || []
+                comments: historyData.comments || [],
+                ...historyData.proposalThread
               });
             });
-
-            // Add current version as the first item - preserving original status
+    
+            // Add current version as the first item
             versionDetails.unshift({
               ...proposalData,
               version: proposalData.version || "1",
               timestamp: proposalData.updatedAt || proposalData.createdAt,
               updatedBy: proposalData.updatedBy || "You",
-              status: proposalData.status, // Keep original status from DB
+              status: proposalData.status,
               remarks: "Current version",
-              comments: proposalData.comments || []
+              comments: proposalData.comments
             });
-
+    
             proposalData.versionDetails = versionDetails;
-            proposalData.proposalThread = proposalThread;
             return proposalData;
           });
-
+    
           fetchedProposals = await Promise.all(proposalPromises);
           
           // Initialize loaded versions
@@ -274,7 +287,7 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
   };
 
   const formatTimestamp = (timestamp) => {
-    if (!timestamp) return "No date";
+    if (!timestamp) return " Iceland";
     
     if (timestamp.seconds) {
       const date = new Date(timestamp.seconds * 1000);
@@ -290,7 +303,7 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
         : date.toLocaleString();
     }
     
-    return "Invalid date";
+    return "";
   };
 
   const getStatusBadge = (status) => {
@@ -561,46 +574,89 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
               <div>
                 <h4 className="text-sm font-medium text-gray-300 mb-2 flex items-center">
                   <MessageSquare size={16} className="mr-1" />
-                  Reviewer Comments for Version {version.version}:
+                  {index === 0 ? "Discussion" : `Discussion for Version ${version.version}`}
                 </h4>
                 
-                {version.comments && version.comments.length > 0 ? (
-                  <div className="bg-gray-700 p-4 rounded max-h-96 overflow-y-auto space-y-3">
-                    {version.comments.map((comment, idx) => (
-                      <div key={idx} className="bg-gray-800 p-3 rounded border-l-4 border-blue-500">
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-1 gap-1">
-                          <span className="text-xs font-medium text-blue-400 break-words">
-                            {comment.reviewerName || "Reviewer"}
-                          </span>
-                          <span className="text-xs text-gray-500 whitespace-nowrap">
-                            {formatTimestamp(comment.timestamp)}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-300 break-words">
-                          {comment.text || "No comment text"}
-                        </p>
-                        {comment.suggestions && (
-                          <div className="mt-2 pt-2 border-t border-gray-600">
-                            <div className="text-xs font-medium text-gray-400 mb-1">Suggestions:</div>
-                            <ul className="text-sm text-gray-300 list-disc pl-5 space-y-1">
-                              {Array.isArray(comment.suggestions) ? (
-                                comment.suggestions.map((suggestion, sIdx) => (
-                                  <li key={sIdx} className="break-words">{suggestion}</li>
-                                ))
-                              ) : (
-                                <li className="break-words">{comment.suggestions}</li>
-                              )}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="bg-gray-700 p-4 rounded">
-                    <p className="text-sm text-gray-500 italic">
-                      No reviewer comments available for this version.
-                    </p>
+                {version.comments?.length > 0 ? (
+  <div className="bg-gray-700 p-4 rounded max-h-96 overflow-y-auto space-y-4">
+    {version.comments
+      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+      .map((item, idx) => {
+        const isCurrentUser = item.authorId === auth.currentUser?.uid;
+        return (
+          <div 
+            key={idx} 
+            className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
+          >
+            <div className={`max-w-[80%] rounded-lg p-3 ${
+              isCurrentUser
+                ? "bg-green-900/30 border-t-4 border-green-500 rounded-tr-none"
+                : "bg-blue-900/30 border-t-4 border-blue-500 rounded-tl-none"
+            }`}>
+              <div className={`flex ${isCurrentUser ? 'flex-row-reverse' : 'flex-row'} justify-between items-start mb-1 gap-2`}>
+                <span className={`text-xs font-medium ${
+                  isCurrentUser ? "text-green-400" : "text-blue-400"
+                }`}>
+                  {isCurrentUser ? "You" : "Reviewer"}
+                </span>
+                <span className="text-xs text-gray-400 whitespace-nowrap">
+                  {formatTimestamp(item.timestamp)}
+                </span>
+              </div>
+              <p className="text-sm text-gray-100 break-words">
+                {item.text || "No text provided"}
+              </p>
+              {item.suggestions && !isCurrentUser && (
+                <div className="mt-2 pt-2 border-t border-gray-600/50">
+                  <div className="text-xs font-medium text-gray-300 mb-1">Suggestions:</div>
+                  <ul className="text-sm text-gray-200 list-disc pl-5 space-y-1">
+                    {Array.isArray(item.suggestions) ? (
+                      item.suggestions.map((suggestion, sIdx) => (
+                        <li key={sIdx} className="break-words">{suggestion}</li>
+                      ))
+                    ) : (
+                      <li className="break-words">{item.suggestions}</li>
+                    )}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+  </div>
+) : (
+  <div className="bg-gray-700 p-4 rounded">
+    <p className="text-sm text-gray-400 italic">
+      {index === 0 ? "No discussion yet" : "No discussion available for this version."}
+    </p>
+  </div>
+)}
+                
+                {/* Reply input for current version only */}
+                {index === 0 && (
+                  <div className="mt-4">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={newReply}
+                        onChange={(e) => setNewReply(e.target.value)}
+                        placeholder="Add your reply..."
+                        className="flex-1 bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && newReply.trim()) {
+                            submitReply(proposal.id);
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={() => submitReply(proposal.id)}
+                        disabled={!newReply.trim()}
+                        className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Send size={18} />
+                      </button>
+                    </div>
                   </div>
                 )}
                 
@@ -661,7 +717,7 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
         
         {singleProposalView && (
           <button 
-            onClick={handleBackToAll}
+            onClick={() => onBack ? onBack() : router.push("/proposaltracking")}
             className="flex items-center text-blue-400 hover:text-blue-300 transition whitespace-nowrap"
           >
             <ArrowLeft size={16} className="mr-1" />

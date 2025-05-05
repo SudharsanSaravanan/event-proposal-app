@@ -12,6 +12,10 @@ export default function ReviewerLayout() {
     setCurrentView(view);
     if (status) {
       setFilterStatus(status);
+    } else if (view === "view-proposals") {
+      setFilterStatus("pending");
+    } else if (view === "reviewed-proposals") {
+      setFilterStatus("all");
     }
   };
 
@@ -22,7 +26,7 @@ export default function ReviewerLayout() {
         return (
           <ReviewerProposalViewContent
             onBack={() => setCurrentView("dashboard")}
-            filterStatus={currentView === "reviewed-proposals" ? "all" : "pending"}
+            filterStatus={filterStatus}
           />
         );
       case "dashboard":

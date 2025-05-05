@@ -51,7 +51,8 @@ export default function EditProposalContent({ proposalId, onBack }) {
     version: 1,
     proposerId: "",
     createdAt: null,
-    updatedAt: null
+    updatedAt: null,
+    comments: [] 
   });
   
   const [loading, setLoading] = useState(true);
@@ -128,7 +129,8 @@ export default function EditProposalContent({ proposalId, onBack }) {
           groupDetails: proposalThread.isIndividual ? undefined : (proposalThread.groupDetails || {
             maxGroupMembers: 4,
             feeType: "perhead"
-          })
+          }),
+          comments: proposalThread.comments || [] // Include comments from fetched data
         });
 
         setLoading(false);
@@ -228,7 +230,9 @@ export default function EditProposalContent({ proposalId, onBack }) {
           proposalThread: { 
             ...currentproposalThread,
             additionalRequirements: currentproposalThread.additionalRequirements || "nil",
-            targetAudience: currentproposalThread.targetAudience || ""
+            targetAudience: currentproposalThread.targetAudience || "",
+            // Include comments in history
+            comments: currentproposalThread.comments || []
           },
           updatedAt: serverTimestamp(),
           version: currentproposalThread.version,
@@ -251,7 +255,9 @@ export default function EditProposalContent({ proposalId, onBack }) {
         createdAt: currentproposalThread.createdAt || serverTimestamp(),
         additionalRequirements: proposal.additionalRequirements || "nil",
         targetAudience: proposal.targetAudience || "",
-        proposerEmail: proposal.proposerEmail || ""
+        proposerEmail: proposal.proposerEmail || "",
+        // Clear comments array for new version
+        comments: []
       };
       
       // Remove groupDetails if switching to individual

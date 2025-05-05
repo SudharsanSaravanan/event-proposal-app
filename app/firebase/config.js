@@ -32,17 +32,26 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-/**
- * Save a new user to Firestore "Auth" collection
- */
-const saveUserToFirestore = async (name, email, userId) => {
+//Save a new user to Firestore "Auth" collection
+const saveUserToFirestore = async (name, email, userId, role, department = null) => {
   try {
-    await setDoc(doc(db, "Auth", userId), {
+    const userData = {
       name,
       email,
-      role: "User",
+      role, // No default role - must be specified
       createdAt: serverTimestamp()
-    });
+    };
+
+    // Set department based on whether it's provided
+    if (department !== null) {
+      if (role === "Reviewer") {
+        userData.department = Array.isArray(department) ? department : [department].filter(Boolean);
+      } else {
+        userData.department = typeof department === 'string' ? department : "";
+      }
+    }
+
+    await setDoc(doc(db, "Auth", userId), userData);
     return true;
   } catch (error) {
     console.error("Error adding user to Firestore:", error);
@@ -76,16 +85,17 @@ const getAllUsers = async () => {
   }
 };
 
-/**
- * Add a new proposal to Firestore "Proposals" collection
- */
+
+ //Add a new proposal to Firestore "Proposals" collection
+
+
 const addProposal = async (proposalData) => {
   try {
-    // Create a copy without id or proposerName if they exist
-    const { id, proposerName, ...dataToStore } = proposalData;
+    // Create a copy without id
+    const { id, ...dataToStore } = proposalData;
     
-    // Always set version to 1 for new proposals
-    dataToStore.version = 1;
+    // Initialize comments as empty array
+    dataToStore.comments = [];
     
     // Use the document reference to add the document
     const docRef = await addDoc(collection(db, "Proposals"), {
@@ -188,13 +198,19 @@ const getProposalHistory = async (proposalId) => {
   try {
     const q = query(collection(db, "Proposals", proposalId, "History"), orderBy("version", "desc"));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return querySnapshot.docs.map(doc => ({ 
+      id: doc.id, 
+      version: doc.data().version,
+      comments: doc.data().comments || [],
+      replies: doc.data().replies || [],
+      updatedAt: doc.data().updatedAt,
+      updatedBy: doc.data().updatedBy
+    }));
   } catch (error) {
     console.error("Error getting proposal history:", error);
     return [];
   }
 };
-
 /**
  * Add an entry to the proposal history
  */
@@ -238,7 +254,28 @@ const updateProposalStatus = async (proposalId, newStatus, remarks, userId) => {
     if (newStatus.toLowerCase() === "reviewed" && 
         proposalData.status?.toLowerCase() !== "reviewed") {
       newVersion = newVersion + 1;
+      
+      // When version increments, move current comments and replies to history
+      const currentComments = proposalData.comments || [];
+      const currentReplies = proposalData.replies || [];
+      
+      if (currentComments.length > 0 || currentReplies.length > 0) {
+        await addDoc(collection(db, "Proposals", proposalId, "History"), {
+          version: proposalData.version || 1,
+          comments: currentComments,
+          replies: currentReplies,
+          updatedAt: serverTimestamp(),
+          updatedBy: userId
+        });
+      }
+      
+      // Clear current comments and replies for the new version
+      await updateDoc(proposalRef, {
+        comments: [],
+        replies: []
+      });
     }
+
     
     // Update the proposal with new status and version if needed
     await updateDoc(proposalRef, { 
@@ -360,23 +397,33 @@ const updateProposal = async (proposalId, proposalData) => {
 // Check if user is a reviewer
 async function isUserReviewer(uid) {
   try {
-    const reviewerRef = doc(db, "Reviewers", uid);
-    const reviewerSnap = await getDoc(reviewerRef);
-    return reviewerSnap.exists();
+    const userDoc = await getDoc(doc(db, "Auth", uid));
+    if (!userDoc.exists()) return false;
+    
+    const userData = userDoc.data();
+    return userData.role === "Reviewer";
   } catch (error) {
     console.error("Error checking reviewer status:", error);
     return false;
   }
 }
-
 // Get reviewer info
 async function getReviewerInfo(uid) {
   try {
-    const reviewerRef = doc(db, "Reviewers", uid);
-    const reviewerSnap = await getDoc(reviewerRef);
+    const userRef = doc(db, "Auth", uid);
+    const userSnap = await getDoc(userRef);
     
-    if (reviewerSnap.exists()) {
-      return reviewerSnap.data();
+    if (userSnap.exists()) {
+      const userData = userSnap.data();
+      return {
+        ...userData,
+        // Ensure department is always an array for reviewers
+        department: userData.role === "Reviewer" 
+          ? (Array.isArray(userData.department) 
+              ? userData.department 
+              : [userData.department].filter(Boolean))
+          : userData.department || "" // Single string for non-reviewers
+      };
     }
     return null;
   } catch (error) {
@@ -422,7 +469,7 @@ async function getReviewerProposals(departments) {
       const proposalData = doc.data();
       const proposalDept = proposalData.department;
       
-      console.log(`Checking proposal ${doc.id}: department=${proposalDept}`);
+      console.log(`Checking proposal ${doc.id}: department=${proposalData.department}`);
       
       // Check if this proposal's department is in the reviewer's departments
       if (proposalDept && departments.includes(proposalDept)) {
@@ -443,7 +490,7 @@ async function getReviewerProposals(departments) {
 }
 
 // Update proposal status (for reviewers)
-async function updateProposalStatusReviewer(proposalId, status, comment, reviewerName) {
+async function updateProposalStatusReviewer(proposalId, status, comment) {
   try {
     const proposalRef = doc(db, "Proposals", proposalId);
     const proposalSnap = await getDoc(proposalRef);
@@ -455,30 +502,58 @@ async function updateProposalStatusReviewer(proposalId, status, comment, reviewe
     const proposalData = proposalSnap.data();
     const currentComments = proposalData.comments || [];
     
-    // Create new comment with regular Date object
+    // Get reviewer info from Auth collection
+    const reviewerInfo = await getReviewerInfo(auth.currentUser.uid);
+    
     const newComment = {
       text: comment,
-      reviewerName: reviewerName,
-      timestamp: new Date(), // Use regular Date instead of serverTimestamp()
+      reviewerName: reviewerInfo?.name || 'Unknown',
+      timestamp: new Date(),
       status: status
     };
     
-    // For reviewer actions, we never create history entries or increment versions
-    const version = proposalData.version || 1;
-    
-    // Update proposal with new status and comment
     await updateDoc(proposalRef, {
       status: status,
-      updatedAt: serverTimestamp(), // This is fine as a top-level field
+      updatedAt: serverTimestamp(),
       reviewedBy: auth.currentUser.uid,
-      reviewedAt: serverTimestamp(), // This is also fine as a top-level field
-      comments: [...currentComments, newComment], // Contains regular Date object
-      version: version // Keep the same version
+      reviewedAt: serverTimestamp(),
+      comments: [...currentComments, newComment]
     });
     
     return true;
   } catch (error) {
     console.error("Error updating proposal status:", error);
+    throw error;
+  }
+}
+
+// Add reply to a proposal (for proposers)
+async function addProposalReply(proposalId, replyText, proposerName) {
+  try {
+    const proposalRef = doc(db, "Proposals", proposalId);
+    const proposalSnap = await getDoc(proposalRef);
+    
+    if (!proposalSnap.exists()) {
+      throw new Error("Proposal not found");
+    }
+    
+    const proposalData = proposalSnap.data();
+    const currentReplies = proposalData.replies || [];
+    
+    const newReply = {
+      text: replyText,
+      proposerName: proposerName,
+      timestamp: new Date(),
+    };
+    
+    await updateDoc(proposalRef, {
+      replies: [...currentReplies, newReply],
+      updatedAt: serverTimestamp()
+    });
+    
+    return true;
+  } catch (error) {
+    console.error("Error adding proposal reply:", error);
     throw error;
   }
 }
@@ -504,5 +579,6 @@ export {
   isUserReviewer,
   getReviewerInfo,
   getReviewerProposals,
-  updateProposalStatusReviewer
+  updateProposalStatusReviewer,
+  addProposalReply
 };

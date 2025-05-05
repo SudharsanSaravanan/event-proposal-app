@@ -1,16 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { auth, isUserReviewer, getReviewerInfo, getReviewerProposals } from "../firebase/config";
+import { auth, db, getReviewerProposals } from "../firebase/config";
 import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 import { 
   ClipboardList, 
   CheckCircle, 
   XCircle, 
   Clock, 
   FileText, 
-  Settings,
-  RefreshCw
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -25,43 +24,98 @@ export default function ReviewerDashboardContent({ onNavigate }) {
     departments: []
   });
   const [refreshing, setRefreshing] = useState(false);
+  const [navigating, setNavigating] = useState(false);
   const router = useRouter();
 
   const loadReviewerData = async (user) => {
     try {
       setLoading(true);
-      const reviewerCheck = await isUserReviewer(user.uid);
       
-      if (reviewerCheck) {
-        const reviewerData = await getReviewerInfo(user.uid);
-        
-        // Process departments (handle different formats)
-        let departments = [];
-        if (reviewerData.department) {
-          if (Array.isArray(reviewerData.department)) {
-            departments = reviewerData.department;
-          } else if (typeof reviewerData.department === 'object') {
-            departments = Object.values(reviewerData.department);
-          } else if (typeof reviewerData.department === 'string') {
-            departments = [reviewerData.department];
+      // First check if we already have reviewer data in session storage
+      const authStr = sessionStorage.getItem("auth");
+      const role = sessionStorage.getItem("role");
+      
+      // If we have auth data in session storage and proper role, use it
+      if (authStr && role && role === "Reviewer") {
+        try {
+          const authData = JSON.parse(authStr);
+          console.log("Using reviewer data from session storage:", authData);
+          
+          if (authData.authenticated && authData.departments) {
+            setReviewer({
+              uid: user.uid,
+              email: user.email,
+              displayName: authData.name || user.displayName || "Reviewer",
+              departments: authData.departments || []
+            });
+            
+            // Load proposals statistics using the departments from session
+            await loadProposalsStatistics(authData.departments);
+            setError(null);
+            return;
           }
+        } catch (e) {
+          console.error("Error parsing auth data from session storage:", e);
         }
-
-        setReviewer({
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName || reviewerData.name,
-          departments,
-          ...reviewerData
-        });
-
-        // Load proposals statistics
-        await loadProposalsStatistics(departments);
-        setError(null);
-      } else {
-        setError("You do not have reviewer privileges. Please contact administrator.");
-        setReviewer(null);
       }
+      
+      // If no valid session data, fall back to Firestore
+      console.log("Checking Firestore for reviewer data");
+      const userRef = doc(db, "Auth", user.uid);
+      const userSnap = await getDoc(userRef);
+      
+      if (!userSnap.exists()) {
+        setError("User document not found in database.");
+        return;
+      }
+      
+      const userData = userSnap.data();
+      console.log("User data from Firestore:", userData);
+      
+      // Check if user is a reviewer (case-insensitive)
+      if (!userData.role || userData.role.toLowerCase() !== "reviewer") {
+        setError("You do not have reviewer privileges. Please contact administrator.");
+        return;
+      }
+      
+      // Process departments (handle different formats)
+      let departments = [];
+      if (userData.department) {
+        if (Array.isArray(userData.department)) {
+          departments = userData.department;
+        } else if (typeof userData.department === 'object') {
+          departments = Object.values(userData.department);
+        } else if (typeof userData.department === 'string') {
+          departments = [userData.department];
+        }
+      }
+      
+      // Store standardized data in session storage
+      const authData = {
+        authenticated: true,
+        name: userData.name || "Reviewer",
+        role: "Reviewer", // Standardized to capital R
+        departments: departments
+      };
+      
+      sessionStorage.setItem("auth", JSON.stringify(authData));
+      sessionStorage.setItem("user", "true");
+      sessionStorage.setItem("role", "Reviewer");
+      sessionStorage.setItem("name", userData.name || "");
+      sessionStorage.setItem("departments", JSON.stringify(departments));
+      
+      setReviewer({
+        uid: user.uid,
+        email: user.email,
+        displayName: userData.name || user.displayName || "Reviewer",
+        departments: departments,
+        ...userData
+      });
+      
+      // Load proposals statistics
+      await loadProposalsStatistics(departments);
+      setError(null);
+      
     } catch (err) {
       console.error("Error setting up reviewer:", err);
       setError("An error occurred while loading reviewer information.");
@@ -102,10 +156,11 @@ export default function ReviewerDashboardContent({ onNavigate }) {
     }
   };
 
-  const handleRefresh = async () => {
-    if (reviewer) {
-      await loadProposalsStatistics(reviewer.departments);
-    }
+  const handleNavigation = (route) => {
+    setNavigating(true);
+    setTimeout(() => {
+      onNavigate && onNavigate(route);
+    }, 0);
   };
 
   useEffect(() => {
@@ -121,6 +176,14 @@ export default function ReviewerDashboardContent({ onNavigate }) {
 
     return () => unsubscribe();
   }, []);
+
+  if (navigating) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-400"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen overflow-y-auto bg-gray-900">
@@ -170,14 +233,6 @@ export default function ReviewerDashboardContent({ onNavigate }) {
                     ))}
                   </div>
                 </div>
-                <button
-                  onClick={handleRefresh}
-                  disabled={refreshing}
-                  className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-md text-sm text-white disabled:opacity-50"
-                >
-                  <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-                  {refreshing ? "Refreshing..." : "Refresh Data"}
-                </button>
               </div>
             </div>
 
@@ -185,7 +240,7 @@ export default function ReviewerDashboardContent({ onNavigate }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               <div 
                 className="bg-blue-900/30 p-6 rounded-lg border border-blue-700 relative cursor-pointer hover:bg-blue-800 transition-all duration-300"
-                onClick={() => onNavigate && onNavigate("view-proposals")}
+                onClick={() => handleNavigation("view-proposals")}
               >
                 <div className="flex justify-between items-start">
                   <h3 className="text-blue-300 text-lg font-medium mb-2">Review Pending Proposals</h3>
@@ -196,11 +251,12 @@ export default function ReviewerDashboardContent({ onNavigate }) {
                 <p className="text-gray-300 text-sm">
                   {statistics.pending} proposals awaiting your review
                 </p>
+                <p className="text-blue-400 text-sm mt-4">Click here to view →</p>
               </div>
               
               <div 
                 className="bg-purple-900/30 p-6 rounded-lg border border-purple-700 relative cursor-pointer hover:bg-purple-800 transition-all duration-300"
-                onClick={() => onNavigate && onNavigate("reviewed-proposals")}
+                onClick={() => handleNavigation("reviewed-proposals")}
               >
                 <div className="flex justify-between items-start">
                   <h3 className="text-purple-300 text-lg font-medium mb-2">View Reviewed Proposals</h3>
@@ -211,8 +267,10 @@ export default function ReviewerDashboardContent({ onNavigate }) {
                 <p className="text-gray-300 text-sm">
                   {statistics.approved + statistics.rejected} proposals reviewed
                 </p>
+                <p className="text-purple-400 text-sm mt-4">Click here to view →</p>
               </div>
             </div>
+
 
             {/* Stats Overview */}
             <div className="bg-gray-800 p-6 rounded-lg shadow-lg mb-8">
