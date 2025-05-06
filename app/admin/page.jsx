@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { doc, setDoc, deleteDoc, collection, getDocs } from "firebase/firestore";
+import { doc, setDoc, deleteDoc, collection, getDocs, getDoc } from "firebase/firestore";
 import { 
   createUserWithEmailAndPassword, 
   signOut, 
-  deleteUser, 
   getAuth 
 } from "firebase/auth";
 import { auth, db } from "@/app/firebase/config";
@@ -20,7 +19,8 @@ import {
   ChevronRightIcon,
   Trash2Icon,
   LogOutIcon,
-  XIcon
+  XIcon,
+  Loader2
 } from "lucide-react";
 import { Combobox } from "@/components/ui/combo-box";
 import { Input } from "@/components/ui/input";
@@ -37,8 +37,49 @@ const AdminPanel = () => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("signup");
   const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Check authentication when the component mounts
+  useEffect(() => {
+    const checkAuth = async () => {
+      const unsubscribe = auth.onAuthStateChanged(async (user) => {
+        if (user) {
+          try {
+            // Check if user is an admin
+            const userRef = doc(db, "Auth", user.uid);
+            const userSnap = await getDoc(userRef);
+            
+            if (!userSnap.exists()) {
+              router.push("/login");
+              return;
+            }
+            
+            const userData = userSnap.data();
+            if (userData.role?.toLowerCase() !== "admin") {
+              // Not an admin, redirect to login
+              router.push("/login");
+              return;
+            }
+            
+            setIsAuthenticated(true);
+            setLoading(false);
+          } catch (error) {
+            console.error("Error checking admin status:", error);
+            router.push("/login");
+          }
+        } else {
+          // No user is logged in, redirect to login
+          router.push("/login");
+        }
+      });
+      
+      return () => unsubscribe();
+    };
+
+    checkAuth();
+  }, [router]);
 
   const handleLogout = async () => {
     try {
@@ -48,6 +89,15 @@ const AdminPanel = () => {
       console.error("Logout error:", error);
     }
   };
+
+  // If still loading or not authenticated, show loading screen
+  if (loading || !isAuthenticated) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-gray-900">
+        <Loader2 className="h-12 w-12 animate-spin text-blue-400" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4 md:p-6">
@@ -147,6 +197,7 @@ const SignUpForm = ({ setUsers }) => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [generatedPassword, setGeneratedPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const generatePassword = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -162,45 +213,64 @@ const SignUpForm = ({ setUsers }) => {
   const handleSignUp = async () => {
     setError("");
     setSuccess("");
-
+    setIsSubmitting(true);
+  
     if (!name || !email || !role || (role === "User" && !department) || (role === "Reviewer" && selectedDepartments.length === 0)) {
       setError("All fields are required!");
+      setIsSubmitting(false);
       return;
     }
-
+  
     if (password !== confirmPassword) {
       setError("Passwords do not match!");
+      setIsSubmitting(false);
       return;
     }
-
+  
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
+      // Use our server API to create the user instead of direct Firebase Authentication
       const departmentData = role === "Reviewer" ? selectedDepartments : department;
-
-      const userRef = doc(db, "Auth", user.uid);
-      await setDoc(userRef, {
-        name,
-        email,
-        department: departmentData,
-        role: role === "User" ? "User" : "Reviewer",
-        createdAt: new Date().toISOString(),
-        initialPassword: password
+      const dbRole = role === "User" ? "user" : "reviewer";
+      
+      const response = await fetch('/api/createUser', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          name,
+          role: dbRole,
+          department: departmentData
+        }),
       });
-
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create user');
+      }
+      
+      const result = await response.json();
+      
+      // Use display-friendly names in UI updates
+      const displayRole = role === "User" ? "Proposer" : "Reviewer";
+  
+      // Update the users state
       setUsers(prevUsers => [
         ...prevUsers,
         {
-          id: user.uid,
+          id: result.uid,
           name,
           email,
           department: departmentData,
-          role: role === "User" ? "User" : "Reviewer",
+          role: dbRole,
+          displayRole,
           initialPassword: password
         }
       ]);
-
+      
+      // Reset form
       setName("");
       setEmail("");
       setDepartment("");
@@ -208,11 +278,13 @@ const SignUpForm = ({ setUsers }) => {
       setPassword("");
       setConfirmPassword("");
       setGeneratedPassword("");
-
+  
       setSuccess("User created successfully!");
     } catch (e) {
       setError(e.message);
       console.error("Signup Error:", e);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -385,10 +457,18 @@ const SignUpForm = ({ setUsers }) => {
         </div>
 
         <Button 
-          className="mt-6 w-full bg-green-600 hover:bg-green-500 h-11"
+          className="mt-6 w-full bg-green-600 hover:bg-green-500 h-11 flex items-center justify-center"
           onClick={handleSignUp}
+          disabled={isSubmitting}
         >
-          Create User
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Creating...
+            </>
+          ) : (
+            "Create User"
+          )}
         </Button>
       </CardContent>
     </div>
@@ -401,10 +481,12 @@ const ViewUsers = ({ users, setUsers, loading, setLoading }) => {
   const [filter, setFilter] = useState("all");
   const [deleteError, setDeleteError] = useState("");
   const [deleteSuccess, setDeleteSuccess] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [usersLoading, setUsersLoading] = useState(false); // Separate loading state for this component
 
   useEffect(() => {
     const fetchUsers = async () => {
-      setLoading(true);
+      setUsersLoading(true); // Use local loading state instead
       try {
         const querySnapshot = await getDocs(collection(db, "Auth"));
         const usersData = querySnapshot.docs.map(doc => ({
@@ -415,32 +497,43 @@ const ViewUsers = ({ users, setUsers, loading, setLoading }) => {
       } catch (error) {
         console.error("Error fetching users:", error);
       } finally {
-        setLoading(false);
+        setUsersLoading(false); // Always set loading to false when done
       }
     };
 
     fetchUsers();
-  }, []);
+  }, []); // Remove dependencies to prevent re-fetching issues
 
   const handleDelete = async () => {
     if (!userToDelete) return;
     
     setDeleteError("");
     setDeleteSuccess("");
+    setIsDeleting(true);
     
     try {
-      await deleteDoc(doc(db, "Auth", userToDelete.id));
+      // First make a call to our API route to delete the user from Firebase Auth
+      const response = await fetch('/api/deleteUser', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ uid: userToDelete.id }),
+      });
       
-      try {
-        console.log(`User ${userToDelete.id} should be deleted from Auth via Admin SDK`);
-        setDeleteSuccess("User successfully deleted from database and authentication.");
-      } catch (authError) {
-        console.error("Error deleting user from authentication:", authError);
-        setDeleteError("User was deleted from database but there was an error removing them from authentication.");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete user from authentication');
       }
       
-      setUsers(users.filter(user => user.id !== userToDelete.id));
+      // Then delete the user from Firestore
+      await deleteDoc(doc(db, "Auth", userToDelete.id));
       
+      // Update the UI
+      setUsers(users.filter(user => user.id !== userToDelete.id));
+      setDeleteSuccess("User successfully deleted from database and authentication.");
+      
+      // Close the dialog after a delay
       setTimeout(() => {
         setDeleteDialogOpen(false);
         setDeleteSuccess("");
@@ -448,14 +541,29 @@ const ViewUsers = ({ users, setUsers, loading, setLoading }) => {
       
     } catch (error) {
       console.error("Error deleting user:", error);
-      setDeleteError("Failed to delete user. Please try again.");
+      setDeleteError(error.message || "Failed to delete user. Please try again.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
+  // Helper function to get display role
+  const getDisplayRole = (role) => {
+    if (!role) return "Unknown";
+    const lowerRole = role.toLowerCase();
+    if (lowerRole === "user") return "Proposer";
+    if (lowerRole === "admin") return "Admin";
+    if (lowerRole === "reviewer") return "Reviewer";
+    // Handle inconsistent casing
+    if (lowerRole === "proposer") return "Proposer";
+    return role; // Default fallback
+  };
+
   const filteredUsers = users.filter(user => {
+    const lowerRole = user.role?.toLowerCase() || "";
     if (filter === "all") return true;
-    if (filter === "proposers") return user.role === "User";
-    if (filter === "reviewers") return user.role === "Reviewer";
+    if (filter === "proposers") return lowerRole === "user" || lowerRole === "proposer";
+    if (filter === "reviewers") return lowerRole === "reviewer";
     return true;
   });
 
@@ -488,9 +596,10 @@ const ViewUsers = ({ users, setUsers, loading, setLoading }) => {
           </TabsList>
         </Tabs>
 
-        {loading ? (
+        {usersLoading ? (
           <div className="flex justify-center items-center h-64">
-            <p className="text-gray-400">Loading users...</p>
+            <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+            <span className="ml-2 text-gray-400">Loading users...</span>
           </div>
         ) : (
           <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
@@ -514,11 +623,13 @@ const ViewUsers = ({ users, setUsers, loading, setLoading }) => {
                         <td className="px-6 py-4 whitespace-nowrap text-gray-300">{user.email}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 rounded-full text-xs ${
-                            user.role === "User" 
+                            (user.role?.toLowerCase() === "user" || user.role?.toLowerCase() === "proposer")
                               ? "bg-green-500/10 text-green-500" 
-                              : "bg-amber-500/10 text-amber-500"
+                              : user.role?.toLowerCase() === "admin"
+                                ? "bg-purple-500/10 text-purple-500"
+                                : "bg-amber-500/10 text-amber-500"
                           }`}>
-                            {user.role === "User" ? "Proposer" : "Reviewer"}
+                            {getDisplayRole(user.role)}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-gray-300">
@@ -528,17 +639,21 @@ const ViewUsers = ({ users, setUsers, loading, setLoading }) => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-gray-300">{user.initialPassword || "N/A"}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <Button 
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => {
-                              setUserToDelete(user);
-                              setDeleteDialogOpen(true);
-                            }}
-                          >
-                            <Trash2Icon className="h-4 w-4 mr-1" />
-                            Delete
-                          </Button>
+                          {user.role?.toLowerCase() === "admin" ? (
+                            <span className="text-xs text-gray-500 italic">Admin</span>
+                          ) : (
+                            <Button 
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => {
+                                setUserToDelete(user);
+                                setDeleteDialogOpen(true);
+                              }}
+                            >
+                              <Trash2Icon className="h-4 w-4 mr-1" />
+                              Delete
+                            </Button>
+                          )}
                         </td>
                       </tr>
                     ))
@@ -587,15 +702,16 @@ const ViewUsers = ({ users, setUsers, loading, setLoading }) => {
                     setDeleteError("");
                     setDeleteSuccess("");
                   }}
+                  disabled={isDeleting}
                 >
                   Cancel
                 </Button>
                 <Button 
                   variant="destructive"
                   onClick={handleDelete}
-                  disabled={!!deleteSuccess}
+                  disabled={isDeleting || !!deleteSuccess}
                 >
-                  Delete
+                  {isDeleting ? "Deleting..." : "Delete"}
                 </Button>
               </div>
             </CardContent>
