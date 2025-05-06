@@ -83,6 +83,7 @@ const SignUp = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900">
+      <br />
       <Card className="w-96 bg-gray-800 text-white border-0 shadow-xl">
         <CardContent className="p-8">
           <img
@@ -159,6 +160,7 @@ const SignUp = () => {
           </p>
         </CardContent>
       </Card>
+      <br />
     </div>
   );
 };
