@@ -30,7 +30,6 @@ export default function UserPage() {
   };
 
   const handleLogout = () => {
-    //console.log("Logging out...");
     router.push("/");
   };
 
