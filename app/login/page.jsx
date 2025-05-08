@@ -28,28 +28,63 @@ const SignIn = () => {
       const result = await signInWithEmailAndPassword(email, password);
       
       if (result && result.user) {
-        // Get user role from Firestore
+        console.log("User logged in:", result.user.uid);
+        
+        // Find user in Auth collection
         const userRef = doc(db, "Auth", result.user.uid);
         const userSnap = await getDoc(userRef);
         
         if (userSnap.exists()) {
           const userData = userSnap.data();
-          const userRole = userData.role;
+          console.log("User data retrieved:", userData);
           
-          // Store user data in session storage
-          sessionStorage.setItem("user", true);
+          // Get role and normalize to lowercase for case-insensitive comparison
+          const userRole = userData.role || "";
+          const normalizedRole = userRole.toLowerCase();
+          console.log("User role:", userRole, "Normalized role:", normalizedRole);
+          
+          // Store user data in session storage (standardizing 'Reviewer' with capital R)
+          sessionStorage.setItem("user", "true");
           sessionStorage.setItem("name", userData.name || "");
-          sessionStorage.setItem("role", userRole);
           
-          // Redirect based on role
-          switch (userRole) {
-            case "Admin":
+          // Standardize role for reviewer to match expectations in reviewer page
+          const standardizedRole = normalizedRole === "reviewer" ? "Reviewer" : userRole;
+          sessionStorage.setItem("role", standardizedRole);
+          
+          // Handle reviewer role specifically (case-insensitive)
+          if (normalizedRole === "reviewer") {
+            console.log("Handling reviewer role");
+            // Handle department data correctly for reviewers
+            let departments = userData.department;
+            // Ensure departments is always treated as an array
+            if (departments && typeof departments === 'object' && !Array.isArray(departments)) {
+              departments = Object.values(departments);
+            }
+            console.log("Reviewer departments:", departments);
+            sessionStorage.setItem("departments", JSON.stringify(departments || []));
+            
+            // Also set the auth object that reviewer page is looking for
+            const authSession = {
+              authenticated: true,
+              name: userData.name || "Reviewer",
+              role: "Reviewer", // Standardized to capital R
+              departments: Array.isArray(departments) ? departments : []
+            };
+            sessionStorage.setItem("auth", JSON.stringify(authSession));
+            
+            // Redirect to reviewer page
+            console.log("Redirecting to reviewer page...");
+            router.push("/reviewer");
+            return;
+          }
+          
+          // Redirect based on role for non-reviewers (case-insensitive)
+          console.log("Redirecting based on normalized role:", normalizedRole);
+          switch (normalizedRole) {
+            case "admin":
               router.push("/admin");
               break;
-            case "Reviewer":
-              router.push("/reviewer");
-              break;
-            case "User":
+            case "user":
               router.push("/user");
               break;
             default:
@@ -68,8 +103,6 @@ const SignIn = () => {
       console.error("Login error:", e);
     } finally {
       setLoading(false);
-      setEmail("");
-      setPassword("");
     }
   };
 
@@ -91,7 +124,7 @@ const SignIn = () => {
             <Input
               type="email"
               id="email"
-              placeholder="Enter your Amrita Email Address"
+              placeholder="Enter your Email Address"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="bg-gray-800 border-gray-600 text-white"

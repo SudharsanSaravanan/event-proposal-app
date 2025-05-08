@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,10 +20,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
 import { 
   auth, 
-  addProposal
-} from "../firebase/config"; // Update this path to match your project structure
+  addProposal,
+  getUserById
+} from "../firebase/config";
 
-// Proposal form validation schema
 const formSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters"),
   description: z.string().min(20, "Description must be at least 20 characters"),
@@ -60,13 +60,27 @@ export default function AddProposalContent() {
   const [success, setSuccess] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
+  const topRef = useRef(null);
 
-  // Check if user is authenticated
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
-        setIsAuthenticated(true);
-        setUser(user);
+        try {
+          const userData = await getUserById(user.uid);
+          if (userData) {
+            setUser({
+              ...user,
+              department: userData.department || ''
+            });
+          } else {
+            setUser(user);
+          }
+          setIsAuthenticated(true);
+        } catch (err) {
+          console.error("Error fetching user data:", err);
+          setUser(user);
+          setIsAuthenticated(true);
+        }
       } else {
         setIsAuthenticated(false);
         setUser(null);
@@ -77,7 +91,16 @@ export default function AddProposalContent() {
     return () => unsubscribe();
   }, []);
 
-  // Initialize form with default values
+  const scrollToTop = () => {
+    setTimeout(() => {
+      if (topRef.current) {
+        topRef.current.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }, 100);
+  };
+
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -87,13 +110,13 @@ export default function AddProposalContent() {
       outcomes: "",
       participantEngagement: "",
       duration: "",
-      registrationFee: "",
+      registrationFee: 0,
       isIndividual: true,
       groupDetails: {
         maxGroupMembers: 4,
         feeType: "perhead",
       },
-      maxSeats: "",
+      maxSeats: 1,
       isEvent: false,
       isTechnical: true,
       preferredDays: {
@@ -101,7 +124,7 @@ export default function AddProposalContent() {
         day2: "",
         day3: "",
       },
-      estimatedBudget: "",
+      estimatedBudget: 0,
       potentialFundingSource: "",
       resourcePersonDetails: "",
       externalResources: "",
@@ -110,46 +133,38 @@ export default function AddProposalContent() {
     },
   });
 
-  // Watch for form value changes to conditionally render fields
   const isIndividual = form.watch("isIndividual");
 
-  // Handle form submission
   async function onSubmit(values) {
-    // Reset status messages
     setError("");
     setSuccess("");
     setIsSubmitting(true);
   
     try {
-      // Ensure user is authenticated
       if (!user) {
         setError("You must be logged in to submit a proposal");
         setIsSubmitting(false);
         return;
       }
   
-      // Prepare the proposal data
       const proposalData = {
         ...values,
         proposerId: user.uid,
         proposerEmail: user.email,
         proposerName: user.displayName || user.email,
-        status: "Pending", // Initial status for new proposals
-        version: 1 // Set initial version
+        department: user.department || '',
+        status: "Pending",
+        version: 1,
+        createdAt: new Date().toISOString()
       };
   
-      // If this is an individual event, remove group details
       if (values.isIndividual) {
         delete proposalData.groupDetails;
       }
   
-      // Submit to Firestore
-      const proposalId = await addProposal(proposalData);
+      await addProposal(proposalData);
       
-      console.log("Proposal submitted successfully with ID:", proposalId);
       setSuccess("Proposal submitted successfully!");
-      
-      // Clear form
       form.reset();
       
     } catch (error) {
@@ -157,11 +172,12 @@ export default function AddProposalContent() {
       setError("Failed to submit proposal. Please try again.");
     } finally {
       setIsSubmitting(false);
+      scrollToTop();
     }
   }
 
   return (
-    <div className="pb-10">
+    <div className="pb-10 pr-6" ref={topRef}>
       <h1 className="text-2xl font-bold mb-6 text-white">Add New Proposal</h1>
       
       {error && (
@@ -398,43 +414,43 @@ export default function AddProposalContent() {
               <h2 className="text-xl font-semibold mb-4 text-blue-400">Registration and Participation</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                control={form.control}
-                name="registrationFee"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-white">Registration Fee (₹) *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
-                        {...field}
-                        onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage className="text-red-400" />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={form.control}
+                  name="registrationFee"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white">Registration Fee (₹) *</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                          {...field}
+                          onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage className="text-red-400" />
+                    </FormItem>
+                  )}
+                />
                 
                 <FormField
-                    control={form.control}
-                    name="maxSeats"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-white">Maximum Seats *</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
-                            {...field}
-                            onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))}
-                          />
-                        </FormControl>
-                        <FormMessage className="text-red-400" />
-                      </FormItem>
-                    )}
-                  />
+                  control={form.control}
+                  name="maxSeats"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white">Maximum Seats *</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                          {...field}
+                          onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage className="text-red-400" />
+                    </FormItem>
+                  )}
+                />
               </div>
               
               <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
