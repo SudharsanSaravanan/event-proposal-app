@@ -17,13 +17,12 @@ export default function ReviewerPage() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        console.log("No user found, redirecting to login");
+        console.error("No user found, redirecting to login");
         router.push("/login");
         return;
       }
 
       try {
-        console.log("User authenticated:", user.uid);
         
         // First check session storage for values from the login page
         const isUser = sessionStorage.getItem("user");
@@ -40,13 +39,9 @@ export default function ReviewerPage() {
           console.error("Error parsing departments:", e);
         }
         
-        console.log("Session storage - user:", isUser);
-        console.log("Session storage - role:", role);
-        console.log("Session storage - departments:", departments);
         
         // Check if user is already authenticated via session storage
         if (isUser === "true" && role && role.toLowerCase() === "reviewer") {
-          console.log("User authenticated via session storage");
           
           // Create userData object from session storage
           const authData = {
@@ -66,7 +61,6 @@ export default function ReviewerPage() {
         }
         
         // Fallback to Firestore check if session storage doesn't have valid data
-        console.log("Checking Firestore for user data");
         const userRef = doc(db, "Auth", user.uid);
         const userSnap = await getDoc(userRef);
         
@@ -75,8 +69,6 @@ export default function ReviewerPage() {
         }
         
         const firestoreData = userSnap.data();
-        console.log("[ReviewerPage] User data from Firestore:", firestoreData);
-        console.log("[ReviewerPage] User role from Firestore:", firestoreData.role);
         
         // Check role case-insensitively
         if (firestoreData.role.toLowerCase() !== "reviewer") {

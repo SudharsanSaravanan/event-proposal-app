@@ -55,7 +55,6 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus = "al
   const router = useRouter();
 
   const handleLogout = () => {
-    //console.log("Logging out...");
     router.push("/");
   };
 
@@ -105,7 +104,7 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus = "al
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        console.log("No user found, redirecting to login");
+        console.error("No user found, redirecting to login");
         router.push("/login");
         return;
       }
@@ -129,7 +128,6 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus = "al
         
         // Check if user is already authenticated via session storage
         if (isUser === "true" && role && role.toLowerCase() === "reviewer") {
-          console.log("User authenticated via session storage");
           
           // Create reviewer data from session storage
           const reviewerData = {
@@ -171,7 +169,6 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus = "al
         }
         
         // Fallback to Firestore check if session storage doesn't have valid data
-        console.log("Checking Firestore for reviewer data");
         const reviewerRef = doc(db, "Reviewers", user.uid);
         const reviewerDoc = await getDoc(reviewerRef);
         
@@ -270,7 +267,6 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus = "al
   const toggleExpand = async (id) => {
     //////remove
     const history = await fetchProposalHistory(id);
-    console.log("Fetched history for proposal", id, history);
 
     if (expandedProposal === id) {
       setExpandedProposal(null);
@@ -870,10 +866,6 @@ export default function ReviewerProposalViewContent({ onBack, filterStatus = "al
                     </div>
 
                     <div className="space-y-4 min-w-0">
-                       {/* Debug logs - Add these lines */}
-                        {console.log('Current proposal:', proposal)}
-                        {console.log('Current comments:', proposal.comments)}
-                        {console.log('History data:', proposal.history)}
                         <div>
                           <h4 className="text-sm font-medium text-gray-300 mb-2 flex items-center">
                             <MessageSquare size={16} className="mr-1 flex-shrink-0" />
