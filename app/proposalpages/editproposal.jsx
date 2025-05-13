@@ -347,11 +347,11 @@ export default function EditProposalContent({ proposalId, onBack }) {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-white">Edit Proposal</h1>
         <div className="flex items-center gap-4 pr-5">
-          <span className={`px-3 py-1 pb-1.5 ${getStatusColor(proposal.status)} text-white text-sm rounded-full`}>
+          <span className={`px-2 sm:px-3 py-1 text-xs sm:text-sm ${getStatusColor(proposal.status)} text-white rounded-full`}>
             {proposal.status || "Pending"}
           </span>
-          <span className="px-3 py-1 pb-1.5 bg-gray-700 text-white text-sm rounded-full">
-            Version: {proposal.version || 1}
+          <span className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-gray-700 text-white rounded-full">
+            v{proposal.version || 1}
           </span>
         </div>
       </div>
@@ -532,10 +532,10 @@ export default function EditProposalContent({ proposalId, onBack }) {
             </div>
           </div>
           
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="flex items-center space-x-4">
-              <div>
-                <label className="inline-flex items-center">
+          <div className="mt-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="flex-1">
+                <label className="inline-flex items-center w-full">
                   <input
                     type="radio"
                     checked={proposal.isIndividual === true}
@@ -545,8 +545,8 @@ export default function EditProposalContent({ proposalId, onBack }) {
                   <span className="ml-2">Individual Registration</span>
                 </label>
               </div>
-              <div>
-                <label className="inline-flex items-center">
+              <div className="flex-1">
+                <label className="inline-flex items-center w-full">
                   <input
                     type="radio"
                     checked={proposal.isIndividual === false}
