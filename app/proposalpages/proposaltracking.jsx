@@ -422,7 +422,7 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                 <div className="bg-gray-700 p-4 rounded">
                   <h4 className="text-sm font-medium text-gray-300 mb-3">Additional Information:</h4>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="text-sm text-gray-300 break-words">
                     {/* Target Audience */}
                     {version.targetAudience && (
                       <div>
@@ -712,6 +712,7 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
     <div className="pb-10 px-4 sm:pr-6">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
         <h1 className="text-2xl font-bold text-white">
+          <br></br>
           {singleProposalView ? "Proposal Tracking Details" : "Proposal Tracking"}
         </h1>
         
