@@ -341,10 +341,10 @@ export default function EditProposalContent({ proposalId, onBack }) {
       </div>
     );
   }
-
   return (
     <div className="pb-10 pr-6">
       <div className="flex justify-between items-center mb-6">
+        <br></br>
         <h1 className="text-2xl font-bold text-white">Edit Proposal</h1>
         <div className="flex items-center gap-4 pr-5">
           <span className={`px-2 sm:px-3 py-1 text-xs sm:text-sm ${getStatusColor(proposal.status)} text-white rounded-full`}>

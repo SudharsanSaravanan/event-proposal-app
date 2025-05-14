@@ -163,7 +163,7 @@ if (isMobile) {
           data-slot="mobile-menu"
           className={cn(
             "fixed z-50 bg-sidebar text-sidebar-foreground w-56 max-h-[70vh] overflow-auto rounded-lg shadow-lg border border-sidebar-border",
-            side === "left" ? "left-2 top-14" : "right-2 top-14" // Position below the header/top bar
+            side === "left" ? "left-2 top-[var(--header-height)]" : "right-2 top-[var(--header-height)]"// Position below the header/top bar
           )}
           onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
         >
