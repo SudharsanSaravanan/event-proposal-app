@@ -435,7 +435,7 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                     
                     {/* Preferred Days */}
                     {version.preferredDays && (
-                      <div className="col-span-2">
+                      <div className="col-span-2 mt-2">
                         <h5 className="text-xs font-medium text-gray-400 flex items-center gap-1">
                           <Calendar size={14} /> Preferred Days
                         </h5>
@@ -464,7 +464,7 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                     
                     {/* Group Details */}
                     {version.groupDetails && !version.isIndividual && (
-                      <div className="col-span-2 bg-gray-600 p-3 rounded">
+                      <div className="col-span-2 bg-gray-600 p-3 rounded mt-2">
                         <h5 className="text-xs font-medium text-gray-300 flex items-center gap-1">
                           <Users size={14} /> Group Details
                         </h5>
@@ -483,7 +483,7 @@ export default function ProposalTrackingContent({ proposalId, onBack }) {
                     
                     {/* Additional Requirements */}
                     {version.additionalRequirements && (
-                      <div className="col-span-2">
+                      <div className="col-span-2 mt-2">
                         <h5 className="text-xs font-medium text-gray-400 flex items-center gap-1">
                           <Layers size={14} /> Additional Requirements
                         </h5>
