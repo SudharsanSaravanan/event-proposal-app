@@ -8,13 +8,20 @@ import ViewProposalsContent from "../proposalpages/viewproposals";
 import AddProposalContent from "../proposalpages/addproposal";
 import ProposalTrackingContent from "../proposalpages/proposaltracking";
 import EditProposalContent from "../proposalpages/editproposal";
+import { auth, db } from "@/app/firebase/config";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { Loader2 } from "lucide-react";
 
 export default function UserPage() {
   const [activeView, setActiveView] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [selectedProposalId, setSelectedProposalId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const router = useRouter();
+
 
     useEffect(() => {
     const checkIfMobile = () => {
@@ -31,23 +38,62 @@ export default function UserPage() {
     return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        router.push("/login");
+        return;
+      }
+
+      try {
+        // Check Firestore for user role
+        const userRef = doc(db, "Auth", user.uid);
+        const userSnap = await getDoc(userRef);
+        
+        if (!userSnap.exists()) {
+          router.push("/login");
+          return;
+        }
+        
+        const userData = userSnap.data();
+        const userRole = userData.role?.toLowerCase();
+        
+        // Only allow users with 'user' role (case-insensitive check)
+        if (userRole !== "user") {
+          router.push("/login");
+          return;
+        }
+        
+        setIsAuthenticated(true);
+      } catch (error) {
+        console.error("Authentication error:", error);
+        router.push("/login");
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router]);
+
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
-  // Function to handle switching to edit mode with a specific proposal
   const handleEditProposal = (proposalId) => {
     setSelectedProposalId(proposalId);
     setActiveView("edit-proposal");
   };
 
-  // Function to handle switching to tracking mode with a specific proposal
   const handleTrackProposal = (proposalId) => {
     setSelectedProposalId(proposalId);
     setActiveView("track-proposal");
   };
 
   const handleLogout = () => {
-    //console.log("Logging out...");
-    router.push("/");
+    auth.signOut().then(() => {
+      router.push("/");
+    }).catch((error) => {
+      console.error("Logout error:", error);
+    });
   };
 
   const handleNavigate = (view) => {
@@ -90,6 +136,14 @@ export default function UserPage() {
         return <DashboardContent onNavigate={handleNavigate} />;
     }
   };
+
+  if (loading || !isAuthenticated) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-gray-900">
+        <Loader2 className="h-12 w-12 animate-spin text-blue-400" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-screen bg-gray-900 overflow-hidden">
@@ -194,7 +248,7 @@ export default function UserPage() {
         </div>
       </div>
 
-      {/* Main Content (No Scrollbar Here) */}
+      {/* Main Content */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <div className="flex-1 p-6 h-full overflow-hidden">{renderContent()}</div>
       </div>

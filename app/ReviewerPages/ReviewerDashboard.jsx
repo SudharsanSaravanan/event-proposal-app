@@ -39,7 +39,6 @@ export default function ReviewerDashboardContent({ onNavigate }) {
       if (authStr && role && role === "Reviewer") {
         try {
           const authData = JSON.parse(authStr);
-          console.log("Using reviewer data from session storage:", authData);
           
           if (authData.authenticated && authData.departments) {
             setReviewer({
@@ -60,7 +59,6 @@ export default function ReviewerDashboardContent({ onNavigate }) {
       }
       
       // If no valid session data, fall back to Firestore
-      console.log("Checking Firestore for reviewer data");
       const userRef = doc(db, "Auth", user.uid);
       const userSnap = await getDoc(userRef);
       
@@ -70,7 +68,6 @@ export default function ReviewerDashboardContent({ onNavigate }) {
       }
       
       const userData = userSnap.data();
-      console.log("User data from Firestore:", userData);
       
       // Check if user is a reviewer (case-insensitive)
       if (!userData.role || userData.role.toLowerCase() !== "reviewer") {

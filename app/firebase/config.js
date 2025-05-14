@@ -435,7 +435,6 @@ async function getReviewerInfo(uid) {
 // Get proposals for a reviewer based on their departments
 async function getReviewerProposals(departments) {
   try {
-    console.log("Fetching proposals for departments:", departments);
     
     if (!departments || departments.length === 0) {
       console.error("No departments specified for reviewer");
@@ -448,11 +447,9 @@ async function getReviewerProposals(departments) {
       // Try to convert to array if it's an object with numeric keys
       if (typeof departments === 'object') {
         departments = Object.values(departments);
-        console.log("Converted departments to array:", departments);
       } else {
         // If it's a string, put it in an array
         departments = [departments];
-        console.log("Converted single department to array:", departments);
       }
     }
 
@@ -460,7 +457,6 @@ async function getReviewerProposals(departments) {
     const proposalsRef = collection(db, "Proposals");
     const proposalsSnapshot = await getDocs(proposalsRef);
 
-    console.log(`Retrieved ${proposalsSnapshot.size} total proposals`);
     
     // Filter proposals that match any of the reviewer's departments
     const proposals = [];
@@ -469,11 +465,9 @@ async function getReviewerProposals(departments) {
       const proposalData = doc.data();
       const proposalDept = proposalData.department;
       
-      console.log(`Checking proposal ${doc.id}: department=${proposalData.department}`);
       
       // Check if this proposal's department is in the reviewer's departments
       if (proposalDept && departments.includes(proposalDept)) {
-        console.log(`✓ Proposal ${doc.id} matches department: ${proposalDept}`);
         proposals.push({
           id: doc.id,
           ...proposalData
@@ -481,7 +475,6 @@ async function getReviewerProposals(departments) {
       }
     });
     
-    console.log(`Found ${proposals.length} matching proposals`);
     return proposals;
   } catch (error) {
     console.error("Error fetching reviewer proposals:", error);

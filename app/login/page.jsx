@@ -28,7 +28,6 @@ const SignIn = () => {
       const result = await signInWithEmailAndPassword(email, password);
       
       if (result && result.user) {
-        console.log("User logged in:", result.user.uid);
         
         // Find user in Auth collection
         const userRef = doc(db, "Auth", result.user.uid);
@@ -36,12 +35,10 @@ const SignIn = () => {
         
         if (userSnap.exists()) {
           const userData = userSnap.data();
-          console.log("User data retrieved:", userData);
           
           // Get role and normalize to lowercase for case-insensitive comparison
           const userRole = userData.role || "";
           const normalizedRole = userRole.toLowerCase();
-          console.log("User role:", userRole, "Normalized role:", normalizedRole);
           
           // Store user data in session storage (standardizing 'Reviewer' with capital R)
           sessionStorage.setItem("user", "true");
@@ -53,14 +50,12 @@ const SignIn = () => {
           
           // Handle reviewer role specifically (case-insensitive)
           if (normalizedRole === "reviewer") {
-            console.log("Handling reviewer role");
             // Handle department data correctly for reviewers
             let departments = userData.department;
             // Ensure departments is always treated as an array
             if (departments && typeof departments === 'object' && !Array.isArray(departments)) {
               departments = Object.values(departments);
             }
-            console.log("Reviewer departments:", departments);
             sessionStorage.setItem("departments", JSON.stringify(departments || []));
             
             // Also set the auth object that reviewer page is looking for
@@ -73,13 +68,11 @@ const SignIn = () => {
             sessionStorage.setItem("auth", JSON.stringify(authSession));
             
             // Redirect to reviewer page
-            console.log("Redirecting to reviewer page...");
             router.push("/reviewer");
             return;
           }
           
           // Redirect based on role for non-reviewers (case-insensitive)
-          console.log("Redirecting based on normalized role:", normalizedRole);
           switch (normalizedRole) {
             case "admin":
               router.push("/admin");
