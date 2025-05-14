@@ -178,7 +178,7 @@ export default function AddProposalContent() {
 
   return (
     <div className="pb-10 pr-6" ref={topRef}>
-      <h1 className="text-2xl font-bold mb-6 text-white">Add New Proposal</h1>
+      <h1 className="text-2xl font-bold mb-6 mt-10  text-white">Add New Proposal</h1>
       
       {error && (
         <Alert variant="destructive" className="bg-red-800 border-red-600 mb-6">
