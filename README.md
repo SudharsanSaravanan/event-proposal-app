@@ -31,8 +31,43 @@ npx shadcn@latest add input button card select alert sidebar tabs command popove
 ```sh
 npm install lucide-react
 ```
+  
+## 5. Set up Firebase Configuration
+Create a file named .env.local in your project root and add:
+```sh
+NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-auth-domain
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-storage-bucket
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-messaging-sender-id
+NEXT_PUBLIC_FIREBASE_APP_ID=your-app-id
+```
 
-## 5. Start the development server
+## 6. Set up Firebase Admin SDK for Reviewer System
+```sh
+npm install firebase-admin
+```
+
+Get Firebase Admin credentials:
+
+1. Go to your Firebase project console
+2. Click on the gear icon (⚙️) in the left sidebar to open Project Settings
+3. Go to the "Service accounts" tab
+4. Click on "Generate new private key" button
+5. Save the downloaded JSON file securely
+
+Add to your .env.local file:
+```sh
+# Admin SDK config
+FIREBASE_ADMIN_PROJECT_ID=your-project-id
+FIREBASE_ADMIN_PRIVATE_KEY="your-private-key"
+FIREBASE_ADMIN_CLIENT_EMAIL=your-client-email
+```
+Replace the values with the ones from:
+* Your Firebase project settings for the public values
+* The downloaded service account JSON for the admin values
+
+## 7. Start the development server
 ```sh
 npm run dev
 ```
