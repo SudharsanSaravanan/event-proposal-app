@@ -1,10 +1,31 @@
-# Ignore artifacts:
-dist
-node_modules
-build
-coverage
-.github
-.vscode
-.idea
+# Build outputs
+.next/
+out/
+build/
+dist/
+
+# Node modules
+node_modules/
+
+# Coverage reports
+coverage/
+
+# Various data files
+*.min.js
+*.json
 *.lock
-*.log
+*.yml
+*.yaml
+
+# Public assets
+public/
+
+# Generated files
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Misc
+.github/
+.vscode/
+.idea/
