@@ -146,12 +146,14 @@ export default function AddProposalContent() {
         setIsSubmitting(false);
         return;
       }
-  
+
+      const userData = await getUserById(user.uid);
+
       const proposalData = {
         ...values,
         proposerId: user.uid,
         proposerEmail: user.email,
-        proposerName: user.displayName || user.email,
+        proposerName: userData.name,
         department: user.department || '',
         status: "Pending",
         version: 1,
