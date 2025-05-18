@@ -53,8 +53,8 @@ const ForgotPassword = () => {
                 <CardContent className='p-8'>
                     <h1 className='text-2xl font-semibold text-center mb-2'>Reset Password</h1>
                     <p className='text-gray-400 text-center mb-6'>
-                        Enter your Amrita email address and we'll send you instructions to reset your
-                        password.
+                        Enter your Amrita email address and we'll send you instructions to reset
+                        your password.
                     </p>
 
                     {error && (

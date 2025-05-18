@@ -8,14 +8,7 @@ import { auth, db } from '@/app/firebase/config';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-    UserIcon,
-    UsersIcon,
-    Trash2Icon,
-    LogOutIcon,
-    XIcon,
-    Loader2,
-} from 'lucide-react';
+import { UserIcon, UsersIcon, Trash2Icon, LogOutIcon, XIcon, Loader2 } from 'lucide-react';
 import { Combobox } from '@/components/ui/combo-box';
 import { Input } from '@/components/ui/input';
 
@@ -660,7 +653,7 @@ const ViewUsers = ({ users, setUsers, loading, setLoading }) => {
                                                             user.role?.toLowerCase() === 'proposer'
                                                                 ? 'bg-green-500/10 text-green-500'
                                                                 : user.role?.toLowerCase() ===
-                                                                  'admin'
+                                                                    'admin'
                                                                   ? 'bg-purple-500/10 text-purple-500'
                                                                   : 'bg-amber-500/10 text-amber-500'
                                                         }`}
