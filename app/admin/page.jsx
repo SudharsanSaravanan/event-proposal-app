@@ -2,17 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, setDoc, deleteDoc, collection, getDocs, getDoc } from 'firebase/firestore';
-import { createUserWithEmailAndPassword, signOut, getAuth } from 'firebase/auth';
+import { doc, deleteDoc, collection, getDocs, getDoc } from 'firebase/firestore';
+import { signOut } from 'firebase/auth';
 import { auth, db } from '@/app/firebase/config';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     UserIcon,
-    ClipboardCheckIcon,
     UsersIcon,
-    ChevronRightIcon,
     Trash2Icon,
     LogOutIcon,
     XIcon,
@@ -223,6 +221,13 @@ const SignUpForm = ({ setUsers }) => {
             return;
         }
 
+        // Check if email ends with amrita.edu
+        if (!email.endsWith('amrita.edu')) {
+            setError('Please use an Amrita email address');
+            setIsSubmitting(false);
+            return;
+        }
+
         if (password !== confirmPassword) {
             setError('Passwords do not match!');
             setIsSubmitting(false);
@@ -348,7 +353,7 @@ const SignUpForm = ({ setUsers }) => {
                             <Input
                                 type='email'
                                 className='w-full bg-gray-700 border-gray-600 text-white'
-                                placeholder='Enter email'
+                                placeholder='Enter an Amrita email id'
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                             />
@@ -655,7 +660,7 @@ const ViewUsers = ({ users, setUsers, loading, setLoading }) => {
                                                             user.role?.toLowerCase() === 'proposer'
                                                                 ? 'bg-green-500/10 text-green-500'
                                                                 : user.role?.toLowerCase() ===
-                                                                    'admin'
+                                                                  'admin'
                                                                   ? 'bg-purple-500/10 text-purple-500'
                                                                   : 'bg-amber-500/10 text-amber-500'
                                                         }`}

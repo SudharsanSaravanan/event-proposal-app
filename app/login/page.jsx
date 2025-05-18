@@ -23,6 +23,12 @@ const SignIn = () => {
             return;
         }
 
+        // Check if email ends with amrita.edu
+        if (!email.endsWith('amrita.edu')) {
+            setError('Please use an Amrita email address');
+            return;
+        }
+
         try {
             setLoading(true);
             const result = await signInWithEmailAndPassword(email, password);
@@ -122,7 +128,7 @@ const SignIn = () => {
                         <Input
                             type='email'
                             id='email'
-                            placeholder='Enter your Email Address'
+                            placeholder='Enter your Amrita Email'
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             className='bg-gray-800 border-gray-600 text-white'

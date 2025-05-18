@@ -22,7 +22,7 @@ const departments = [
 const SignUp = () => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
-    const [department, setDepartment] = useState(''); // State for department
+    const [department, setDepartment] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
@@ -33,6 +33,12 @@ const SignUp = () => {
 
         if (!name || !email || !department || !password || !confirmPassword) {
             setError('All fields are required!');
+            return;
+        }
+
+        // Check if email ends with amrita.edu
+        if (!email.endsWith('amrita.edu')) {
+            setError('Please use an Amrita email address');
             return;
         }
 
@@ -52,7 +58,7 @@ const SignUp = () => {
                 name,
                 email,
                 department,
-                role: 'User',
+                role: 'user',
                 createdAt: new Date().toISOString(),
             });
 
@@ -121,7 +127,7 @@ const SignUp = () => {
                         </label>
                         <Input
                             type='email'
-                            placeholder='Enter your Email Address'
+                            placeholder='Enter your Amrita Email'
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             className='mb-4 bg-gray-800 border-gray-600 text-white'

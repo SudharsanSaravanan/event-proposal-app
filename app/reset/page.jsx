@@ -21,6 +21,12 @@ const ForgotPassword = () => {
             return;
         }
 
+        // Check if email ends with amrita.edu
+        if (!email.endsWith('amrita.edu')) {
+            setError('Please use an Amrita email address');
+            return;
+        }
+
         try {
             setIsLoading(true);
             setError('');
@@ -47,7 +53,7 @@ const ForgotPassword = () => {
                 <CardContent className='p-8'>
                     <h1 className='text-2xl font-semibold text-center mb-2'>Reset Password</h1>
                     <p className='text-gray-400 text-center mb-6'>
-                        Enter your email address and we'll send you instructions to reset your
+                        Enter your Amrita email address and we'll send you instructions to reset your
                         password.
                     </p>
 
@@ -73,7 +79,7 @@ const ForgotPassword = () => {
                         <Input
                             type='email'
                             id='email'
-                            placeholder='Enter your Email Address'
+                            placeholder='Enter your Amrita Email'
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             className='bg-gray-800 border-gray-600 text-white'
