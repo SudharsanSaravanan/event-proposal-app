@@ -84,6 +84,7 @@ Replace the values with the ones from:
 ```sh
 npm run dev
 ```
+
 ---
 
 ## 🧼 Code Formatting (Prettier)
