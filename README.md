@@ -84,3 +84,14 @@ Replace the values with the ones from:
 ```sh
 npm run dev
 ```
+---
+
+## 🧼 Code Formatting (Prettier)
+
+To ensure consistent formatting across the project, run:
+
+```bash
+npx prettier --write .
+```
+
+**✅ Important:** Run this **before committing, pushing, or opening a pull request.**
