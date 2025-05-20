@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { db } from '../firebase/firebase';
 
 export default function DashboardContent({ onNavigate }) {
     const [pendingCount, setPendingCount] = useState(0);

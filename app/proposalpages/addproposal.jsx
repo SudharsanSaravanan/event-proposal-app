@@ -18,7 +18,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2 } from 'lucide-react';
-import { auth, addProposal, getUserById } from '../firebase/config';
+import {auth} from "../firebase/firebase";
+import { getUserById } from '../api/userService';
+import { addProposal } from '../api/proposalService';
 
 const formSchema = z.object({
     title: z.string().min(5, 'Title must be at least 5 characters'),

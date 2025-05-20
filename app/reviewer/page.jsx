@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { auth, db } from '@/app/firebase/config';
+import { auth, db } from '@/app/firebase/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import ReviewerLayout from '@/app/ReviewerPages/ReviewerLayout';

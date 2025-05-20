@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useSignInWithEmailAndPassword } from 'react-firebase-hooks/auth';
-import { auth, db } from '@/app/firebase/config';
+import { auth, db } from '@/app/firebase/firebase';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';

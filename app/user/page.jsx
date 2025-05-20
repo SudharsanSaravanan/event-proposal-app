@@ -8,7 +8,7 @@ import ViewProposalsContent from '../proposalpages/viewproposals';
 import AddProposalContent from '../proposalpages/addproposal';
 import ProposalTrackingContent from '../proposalpages/proposaltracking';
 import EditProposalContent from '../proposalpages/editproposal';
-import { auth, db } from '@/app/firebase/config';
+import { auth, db } from '@/app/firebase/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';

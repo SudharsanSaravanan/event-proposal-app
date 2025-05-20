@@ -14,7 +14,7 @@ import {
     orderBy,
 } from 'firebase/firestore';
 import { AlertCircle } from 'lucide-react';
-import { db } from '../firebase/config';
+import { db } from '../firebase/firebase';
 import { useRouter } from 'next/navigation';
 
 export default function EditProposalContent({ proposalId, onBack }) {

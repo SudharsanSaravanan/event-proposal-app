@@ -36,7 +36,7 @@ import {
     serverTimestamp,
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
-import { db } from '../firebase/config';
+import { db } from '../firebase/firebase';
 import { useRouter } from 'next/navigation';
 
 export default function ProposalTrackingContent({ proposalId, onBack }) {
