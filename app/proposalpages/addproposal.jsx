@@ -18,7 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2 } from 'lucide-react';
-import {auth} from "../firebase/firebase";
+import { auth } from '../firebase/firebase';
 import { getUserById } from '../api/userService';
 import { addProposal } from '../api/proposalService';
 

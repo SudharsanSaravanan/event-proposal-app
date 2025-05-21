@@ -99,4 +99,39 @@ const searchUsersByName = async (name) => {
     }
 };
 
-export { saveUserToFirestore, getUserById, getAllUsers, getUsersByRole, searchUsersByName };
+/**
+ * Update a user in Firestore by ID
+ */
+const updateUserById = async (userId, updates) => {
+    try {
+        const userRef = doc(db, 'Auth', userId);
+        await updateDoc(userRef, { ...updates });
+        return true;
+    } catch (error) {
+        console.error('Error updating user:', error);
+        return false;
+    }
+};
+
+/**
+ * Delete a user from Firestore by ID
+ */
+const deleteUserById = async (userId) => {
+    try {
+        await deleteDoc(doc(db, 'Auth', userId));
+        return true;
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        return false;
+    }
+};
+
+export {
+    saveUserToFirestore,
+    getUserById,
+    getAllUsers,
+    getUsersByRole,
+    searchUsersByName,
+    updateUserById,
+    deleteUserById,
+};

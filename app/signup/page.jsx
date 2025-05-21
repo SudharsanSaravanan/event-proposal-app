@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Combobox } from '@/components/ui/combo-box';
+import { saveUserToFirestore } from '../api/userService';
 
 const departments = [
     { value: 'CSE', label: 'CSE' },
@@ -53,14 +54,7 @@ const SignUp = () => {
             const user = userCredential.user;
 
             // Store additional user data in Firestore
-            const userRef = doc(db, 'Auth', user.uid);
-            await setDoc(userRef, {
-                name,
-                email,
-                department,
-                role: 'user',
-                createdAt: new Date().toISOString(),
-            });
+            await saveUserToFirestore(name, email, user.uid, 'user', department)
 
             // Store user info in session storage
             sessionStorage.setItem('user', true);
