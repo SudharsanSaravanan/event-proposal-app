@@ -162,6 +162,53 @@ const addProposalReply = async (proposalId, replyText, proposerName) => {
     }
 };
 
+/**
+ * Get proposals submitted by a user with "Pending" status
+ */
+const getPendingProposalsByUser = async (userId) => {
+    if (!userId) {
+        console.warn('getPendingProposalsByUser called without a valid userId');
+        return [];
+    }
+
+    try {
+        const q = query(
+            collection(db, 'Proposals'),
+            where('proposerId', '==', userId),
+            where('status', 'in', ['Pending', 'pending'])
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+        console.error('Error fetching pending proposals:', error);
+        return [];
+    }
+};
+
+/**
+ * Get proposals submitted by a user with "Reviewed" status
+ */
+const getReviewedProposalsByUser = async (userId) => {
+    if (!userId) {
+        console.warn('getReviewedProposalsByUser called without a valid userId');
+        return [];
+    }
+
+    try {
+        const q = query(
+            collection(db, 'Proposals'),
+            where('proposerId', '==', userId),
+            where('status', 'in', ['Reviewed', 'reviewed'])
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+        console.error('Error fetching reviewed proposals:', error);
+        return [];
+    }
+};
+
+
 export {
     addProposal,
     getProposalById,
@@ -170,4 +217,6 @@ export {
     updateProposal,
     addProposalReply,
     deleteField,
+    getPendingProposalsByUser,
+    getReviewedProposalsByUser,
 };

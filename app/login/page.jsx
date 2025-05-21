@@ -1,13 +1,14 @@
 'use client';
 import { useState } from 'react';
 import { useSignInWithEmailAndPassword } from 'react-firebase-hooks/auth';
-import { auth, db } from '@/app/firebase/firebase';
+import { auth } from '@/app/firebase/firebase';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { PasswordInput } from '@/components/ui/password-input';
 import { doc, getDoc } from 'firebase/firestore';
+import { getUserById } from '../api/userService';
 
 const SignIn = () => {
     const [email, setEmail] = useState('');
@@ -35,11 +36,10 @@ const SignIn = () => {
 
             if (result && result.user) {
                 // Find user in Auth collection
-                const userRef = doc(db, 'Auth', result.user.uid);
-                const userSnap = await getDoc(userRef);
+                const data = await getUserById(result.user.uid);
 
-                if (userSnap.exists()) {
-                    const userData = userSnap.data();
+                if (data !== null) {
+                    const userData = data;
 
                     // Get role and normalize to lowercase for case-insensitive comparison
                     const userRole = userData.role || '';
