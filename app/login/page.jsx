@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { PasswordInput } from '@/components/ui/password-input';
 import { doc, getDoc } from 'firebase/firestore';
-import { getUserById } from '../api/userService';
+import apiRequest from '@/utils/apiRequest';
 
 const SignIn = () => {
     const [email, setEmail] = useState('');
@@ -36,7 +36,9 @@ const SignIn = () => {
 
             if (result && result.user) {
                 // Find user in Auth collection
-                const data = await getUserById(result.user.uid);
+                const data = await apiRequest(`/api/user/${result.user.uid}`, {
+                    method: 'GET',
+                });
 
                 if (data !== null) {
                     const userData = data;

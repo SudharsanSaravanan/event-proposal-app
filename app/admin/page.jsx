@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, deleteDoc, collection, getDocs, getDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/app/firebase/firebase';
 import { Button } from '@/components/ui/button';
@@ -11,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UserIcon, UsersIcon, Trash2Icon, LogOutIcon, XIcon, Loader2 } from 'lucide-react';
 import { Combobox } from '@/components/ui/combo-box';
 import { Input } from '@/components/ui/input';
-import { deleteUserById, getAllUsers, getUserById } from '../api/userService';
+import apiRequest from '@/utils/apiRequest';
 
 const departments = [
     { value: 'CSE', label: 'CSE' },
@@ -36,7 +35,9 @@ const AdminPanel = () => {
                 if (user) {
                     try {
                         // Check if user is an admin
-                        const userData = await getUserById(user.uid)
+                        const userData = await apiRequest(`/api/user/${user.uid}`, {
+                            method: 'GET',
+                        });
 
                         if (userData === null) {
                             router.push('/login');
@@ -497,7 +498,9 @@ const ViewUsers = ({ users, setUsers, loading, setLoading }) => {
         const fetchUsers = async () => {
             setUsersLoading(true); // Use local loading state instead
             try {
-                const usersData = await getAllUsers();
+                const usersData = await apiRequest(`/api/user/getAll`, {
+                    method: 'GET',
+                });
                 setUsers(usersData);
             } catch (error) {
                 console.error('Error fetching users:', error);
@@ -532,7 +535,9 @@ const ViewUsers = ({ users, setUsers, loading, setLoading }) => {
             }
 
             // Then delete the user from Firestore
-            await deleteUserById(userToDelete.id);
+            await apiRequest(`/api/user/${userToDelete.id}`, {
+                method: 'DELETE',
+            });
 
             // Update the UI
             setUsers(users.filter((user) => user.id !== userToDelete.id));

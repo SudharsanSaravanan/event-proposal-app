@@ -19,8 +19,8 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2 } from 'lucide-react';
 import { auth } from '../firebase/firebase';
-import { getUserById } from '../api/userService';
 import { addProposal } from '../api/proposalService';
+import apiRequest from '@/utils/apiRequest';
 
 const formSchema = z.object({
     title: z.string().min(5, 'Title must be at least 5 characters'),
@@ -66,7 +66,9 @@ export default function AddProposalContent() {
         const unsubscribe = auth.onAuthStateChanged(async (user) => {
             if (user) {
                 try {
-                    const userData = await getUserById(user.uid);
+                    const userData = await apiRequest(`/api/user/${user.uid}`, {
+                        method: 'GET',
+                    });
                     if (userData) {
                         setUser({
                             ...user,
@@ -147,7 +149,9 @@ export default function AddProposalContent() {
                 return;
             }
 
-            const userData = await getUserById(user.uid);
+            const userData = await apiRequest(`/api/user/${user.uid}`, {
+                method: 'GET',
+            });
 
             const proposalData = {
                 ...values,
