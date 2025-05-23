@@ -208,7 +208,6 @@ const getReviewedProposalsByUser = async (userId) => {
     }
 };
 
-
 export {
     addProposal,
     getProposalById,

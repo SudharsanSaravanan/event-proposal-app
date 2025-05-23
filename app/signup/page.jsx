@@ -54,7 +54,7 @@ const SignUp = () => {
             const user = userCredential.user;
 
             // Store additional user data in Firestore
-            await saveUserToFirestore(name, email, user.uid, 'user', department)
+            await saveUserToFirestore(name, email, user.uid, 'user', department);
 
             // Store user info in session storage
             sessionStorage.setItem('user', true);
