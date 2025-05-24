@@ -2,7 +2,7 @@
 import { query, orderBy } from 'firebase/firestore';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { auth, db } from '@/app/firebase/config';
+import { auth, db } from '@/app/firebase/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import {
@@ -27,7 +27,7 @@ import {
     IndianRupee,
     Users2,
 } from 'lucide-react';
-import { getReviewerProposals, updateProposalStatusReviewer } from '../firebase/config';
+import { getReviewerProposals, updateProposalStatusReviewer } from '../api/reviewerService';
 
 export default function ReviewerProposalViewContent({ onBack, filterStatus = 'all' }) {
     const [proposals, setProposals] = useState([]);

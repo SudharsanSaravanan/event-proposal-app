@@ -14,8 +14,9 @@ import {
     orderBy,
 } from 'firebase/firestore';
 import { AlertCircle } from 'lucide-react';
-import { db } from '../firebase/config';
+import { db } from '../firebase/firebase';
 import { useRouter } from 'next/navigation';
+import { getProposalById, updateProposal } from '../api/proposalService';
 
 export default function EditProposalContent({ proposalId, onBack }) {
     const router = useRouter();
@@ -91,16 +92,15 @@ export default function EditProposalContent({ proposalId, onBack }) {
             try {
                 setLoading(true);
 
-                const proposalRef = doc(db, 'Proposals', proposalId);
-                const proposalSnap = await getDoc(proposalRef);
+                const proposalData = await getProposalById(proposalId);
 
-                if (!proposalSnap.exists()) {
+                if (proposalData == null) {
                     setError('Proposal not found');
                     setLoading(false);
                     return;
                 }
 
-                const proposalThread = proposalSnap.data();
+                const proposalThread = proposalData;
 
                 // Check authorization
                 if (proposalThread.proposerId !== userId) {
@@ -214,11 +214,8 @@ export default function EditProposalContent({ proposalId, onBack }) {
 
         try {
             setLoading(true);
-            const proposalRef = doc(db, 'Proposals', proposalId);
-
             // Get current proposal data before making changes
-            const currentProposalSnap = await getDoc(proposalRef);
-            const currentproposalThread = currentProposalSnap.data();
+            const currentproposalThread = await getProposalById(proposalId);
 
             // Check if this is the first edit (version 1 with no history)
             const historyQuery = query(
@@ -288,7 +285,7 @@ export default function EditProposalContent({ proposalId, onBack }) {
             const { id, ...proposalWithoutId } = updatedProposal;
 
             // Update the proposal document
-            await updateDoc(proposalRef, proposalWithoutId);
+            await updateProposal(proposalId, proposalWithoutId);
 
             setSuccess(
                 isCreatingNewVersion

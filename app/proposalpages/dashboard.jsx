@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { getPendingProposalsByUser, getReviewedProposalsByUser } from '../api/proposalService';
 
 export default function DashboardContent({ onNavigate }) {
     const [pendingCount, setPendingCount] = useState(0);
@@ -33,25 +32,14 @@ export default function DashboardContent({ onNavigate }) {
         const fetchProposalCounts = async () => {
             try {
                 setLoading(true);
-                const proposalsRef = collection(db, 'Proposals');
-                const pendingQuery = query(
-                    proposalsRef,
-                    where('proposerId', '==', userId),
-                    where('status', 'in', ['Pending', 'pending'])
-                );
-                const reviewedQuery = query(
-                    proposalsRef,
-                    where('proposerId', '==', userId),
-                    where('status', 'in', ['Reviewed', 'reviewed'])
-                );
 
-                const [pendingSnap, reviewedSnap] = await Promise.all([
-                    getDocs(pendingQuery),
-                    getDocs(reviewedQuery),
+                const [pending, reviewed] = await Promise.all([
+                    getPendingProposalsByUser(userId),
+                    getReviewedProposalsByUser(userId),
                 ]);
 
-                setPendingCount(pendingSnap.size);
-                setReviewedCount(reviewedSnap.size);
+                setPendingCount(pending.length);
+                setReviewedCount(reviewed.length);
                 setLoading(false);
             } catch (err) {
                 console.error('Error fetching proposal counts:', err);

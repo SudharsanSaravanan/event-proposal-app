@@ -2,15 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, deleteDoc, collection, getDocs, getDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
-import { auth, db } from '@/app/firebase/config';
+import { auth } from '@/app/firebase/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UserIcon, UsersIcon, Trash2Icon, LogOutIcon, XIcon, Loader2 } from 'lucide-react';
 import { Combobox } from '@/components/ui/combo-box';
 import { Input } from '@/components/ui/input';
+import apiRequest from '@/utils/apiRequest';
 
 const departments = [
     { value: 'CSE', label: 'CSE' },
@@ -35,15 +35,15 @@ const AdminPanel = () => {
                 if (user) {
                     try {
                         // Check if user is an admin
-                        const userRef = doc(db, 'Auth', user.uid);
-                        const userSnap = await getDoc(userRef);
+                        const userData = await apiRequest(`/api/user/${user.uid}`, {
+                            method: 'GET',
+                        });
 
-                        if (!userSnap.exists()) {
+                        if (userData === null) {
                             router.push('/login');
                             return;
                         }
 
-                        const userData = userSnap.data();
                         if (userData.role?.toLowerCase() !== 'admin') {
                             // Not an admin, redirect to login
                             router.push('/login');
@@ -498,11 +498,9 @@ const ViewUsers = ({ users, setUsers, loading, setLoading }) => {
         const fetchUsers = async () => {
             setUsersLoading(true); // Use local loading state instead
             try {
-                const querySnapshot = await getDocs(collection(db, 'Auth'));
-                const usersData = querySnapshot.docs.map((doc) => ({
-                    id: doc.id,
-                    ...doc.data(),
-                }));
+                const usersData = await apiRequest(`/api/user/getAll`, {
+                    method: 'GET',
+                });
                 setUsers(usersData);
             } catch (error) {
                 console.error('Error fetching users:', error);
@@ -537,7 +535,9 @@ const ViewUsers = ({ users, setUsers, loading, setLoading }) => {
             }
 
             // Then delete the user from Firestore
-            await deleteDoc(doc(db, 'Auth', userToDelete.id));
+            await apiRequest(`/api/user/${userToDelete.id}`, {
+                method: 'DELETE',
+            });
 
             // Update the UI
             setUsers(users.filter((user) => user.id !== userToDelete.id));

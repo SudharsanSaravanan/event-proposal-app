@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { getUserProposals } from '../firebase/config';
+import { getUserProposals } from '../api/proposalService';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { Edit2, BarChart2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
