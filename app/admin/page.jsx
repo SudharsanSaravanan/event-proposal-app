@@ -14,6 +14,8 @@ import {
 	LogOutIcon,
 	XIcon,
 	Loader2,
+	CopyIcon,
+	CheckIcon,
 } from "lucide-react";
 import { Combobox } from "@/components/ui/combo-box";
 import { Input } from "@/components/ui/input";
@@ -521,6 +523,28 @@ const ViewUsers = ({ users, setUsers, loading, setLoading }) => {
 	const [deleteSuccess, setDeleteSuccess] = useState("");
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [usersLoading, setUsersLoading] = useState(false); // Separate loading state for this component
+	const [copiedStates, setCopiedStates] = useState({}); // Track copy states for each user
+
+	// Copy to clipboard function
+	const copyToClipboard = async (text, userId, field) => {
+		try {
+			await navigator.clipboard.writeText(text);
+			// Set copied state for this specific user and field
+			setCopiedStates(prev => ({
+				...prev,
+				[`${userId}-${field}`]: true
+			}));
+			// Reset after 2 seconds
+			setTimeout(() => {
+				setCopiedStates(prev => ({
+					...prev,
+					[`${userId}-${field}`]: false
+				}));
+			}, 2000);
+		} catch (err) {
+			console.error('Failed to copy text: ', err);
+		}
+	};
 
 	useEffect(() => {
 		const fetchUsers = async () => {
@@ -678,8 +702,22 @@ const ViewUsers = ({ users, setUsers, loading, setLoading }) => {
 												<td className="px-6 py-4 whitespace-nowrap text-gray-300">
 													{user.name}
 												</td>
-												<td className="px-6 py-4 whitespace-nowrap text-gray-300">
-													{user.email}
+												<td className="px-6 py-4 whitespace-nowrap">
+													<div className="flex items-center space-x-2">
+														<span className="text-gray-300">{user.email}</span>
+														<Button
+															variant="outline"
+															size="sm"
+															className="h-7 w-7 p-0 bg-gray-700 border-gray-600 hover:bg-gray-600"
+															onClick={() => copyToClipboard(user.email, user.id, 'email')}
+														>
+															{copiedStates[`${user.id}-email`] ? (
+																<CheckIcon className="h-3 w-3 text-green-400" />
+															) : (
+																<CopyIcon className="h-3 w-3 text-gray-400" />
+															)}
+														</Button>
+													</div>
 												</td>
 												<td className="px-6 py-4 whitespace-nowrap">
 													<span
@@ -700,8 +738,24 @@ const ViewUsers = ({ users, setUsers, loading, setLoading }) => {
 														? user.department.join(", ")
 														: user.department}
 												</td>
-												<td className="px-6 py-4 whitespace-nowrap text-gray-300">
-													{user.initialPassword || "N/A"}
+												<td className="px-6 py-4 whitespace-nowrap">
+													<div className="flex items-center space-x-2">
+														<span className="text-gray-300">{user.initialPassword || "N/A"}</span>
+														{user.initialPassword && (
+															<Button
+																variant="outline"
+																size="sm"
+																className="h-7 w-7 p-0 bg-gray-700 border-gray-600 hover:bg-gray-600"
+																onClick={() => copyToClipboard(user.initialPassword, user.id, 'password')}
+															>
+																{copiedStates[`${user.id}-password`] ? (
+																	<CheckIcon className="h-3 w-3 text-green-400" />
+																) : (
+																	<CopyIcon className="h-3 w-3 text-gray-400" />
+																)}
+															</Button>
+														)}
+													</div>
 												</td>
 												<td className="px-6 py-4 whitespace-nowrap">
 													{user.role?.toLowerCase() === "admin" ? (
