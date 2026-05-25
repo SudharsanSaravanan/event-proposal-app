@@ -1,26 +1,25 @@
 name: Code Formatting Check.
 
 on:
-    push:
-        branches:
-            - main
-            - dev
-    pull_request:
-        branches:
-            - main
-            - dev
-    workflow_dispatch: # For manual trigger
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+      - dev
+  workflow_dispatch: # For manual trigger
 
 jobs:
-    quality:
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
-            - name: Setup Biome
-              uses: biomejs/setup-biome@v2
-              with:
-                  version: latest
-            - name: Run Biome
-              run: biome check . --linter-enabled=false --formatter-enabled=true --assist-enabled=false
-              
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Biome
+        uses: biomejs/setup-biome@v2
+        with:
+          version: latest
+      - name: Run Biome
+        run: biome check . --linter-enabled=false --formatter-enabled=true --assist-enabled=false

@@ -14,172 +14,172 @@ import { saveUserToFirestore } from "../api/userService";
 import { departments } from "@/app/_components/config";
 
 const SignUp = () => {
-	const [name, setName] = useState("");
-	const [email, setEmail] = useState("");
-	const [department, setDepartment] = useState("");
-	const [password, setPassword] = useState("");
-	const [confirmPassword, setConfirmPassword] = useState("");
-	const [error, setError] = useState("");
-	const router = useRouter();
-	const [createUserWithEmailAndPassword, user, loading, hookError] =
-		useCreateUserWithEmailAndPassword(auth);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [department, setDepartment] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const router = useRouter();
+  const [createUserWithEmailAndPassword, user, loading, hookError] =
+    useCreateUserWithEmailAndPassword(auth);
 
-	const handleSignUp = async () => {
-		setError("");
+  const handleSignUp = async () => {
+    setError("");
 
-		if (!name || !email || !department || !password || !confirmPassword) {
-			setError("All fields are required!");
-			return;
-		}
+    if (!name || !email || !department || !password || !confirmPassword) {
+      setError("All fields are required!");
+      return;
+    }
 
-		// Check if email ends with amrita.edu
-		if (!email.endsWith("amrita.edu")) {
-			setError("Please use an Amrita email address");
-			return;
-		}
+    // Check if email ends with amrita.edu
+    if (!email.endsWith("amrita.edu")) {
+      setError("Please use an Amrita email address");
+      return;
+    }
 
-		if (password !== confirmPassword) {
-			setError("Passwords do not match!");
-			return;
-		}
+    if (password !== confirmPassword) {
+      setError("Passwords do not match!");
+      return;
+    }
 
-		try {
-			// Create user in Firebase Authentication
-			const userCredential = await createUserWithEmailAndPassword(
-				email,
-				password,
-			);
+    try {
+      // Create user in Firebase Authentication
+      const userCredential = await createUserWithEmailAndPassword(
+        email,
+        password,
+      );
 
-			if (!userCredential) {
-				return;
-			}
+      if (!userCredential) {
+        return;
+      }
 
-			const user = userCredential.user;
+      const user = userCredential.user;
 
-			// Store additional user data in Firestore
-			await saveUserToFirestore(name, email, user.uid, "user", department);
+      // Store additional user data in Firestore
+      await saveUserToFirestore(name, email, user.uid, "user", department);
 
-			// Store user info in session storage
-			sessionStorage.setItem("user", true);
-			sessionStorage.setItem("name", name);
+      // Store user info in session storage
+      sessionStorage.setItem("user", true);
+      sessionStorage.setItem("name", name);
 
-			// Clear form
-			setName("");
-			setEmail("");
-			setDepartment("");
-			setPassword("");
-			setConfirmPassword("");
+      // Clear form
+      setName("");
+      setEmail("");
+      setDepartment("");
+      setPassword("");
+      setConfirmPassword("");
 
-			// Redirect to login page
-			router.push("/login");
-		} catch (e) {
-			setError(e.message);
-			console.error("Signup Error:", e);
-		}
-	};
+      // Redirect to login page
+      router.push("/login");
+    } catch (e) {
+      setError(e.message);
+      console.error("Signup Error:", e);
+    }
+  };
 
-	return (
-		<div className="min-h-screen flex flex-col items-center justify-center bg-gray-900">
-			<br />
-			<Card className="w-96 bg-gray-800 text-white border-0 shadow-xl">
-				<CardContent className="p-8">
-					<img
-						alt="profile"
-						src="/anokha_logo.png"
-						className="h-20 w-20 mx-auto object-cover rounded-full mb-4"
-					/>
-					<h1 className="text-2xl font-semibold text-center mb-5">
-						Sign Up as a Proposer
-					</h1>
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900">
+      <br />
+      <Card className="w-96 bg-gray-800 text-white border-0 shadow-xl">
+        <CardContent className="p-8">
+          <img
+            alt="profile"
+            src="/anokha_logo.png"
+            className="h-20 w-20 mx-auto object-cover rounded-full mb-4"
+          />
+          <h1 className="text-2xl font-semibold text-center mb-5">
+            Sign Up as a Proposer
+          </h1>
 
-					{error && <p className="text-red-500 text-sm mb-3">{error}</p>}
-					{hookError && (
-						<p className="text-red-500 text-sm mb-3">{hookError.message}</p>
-					)}
+          {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
+          {hookError && (
+            <p className="text-red-500 text-sm mb-3">{hookError.message}</p>
+          )}
 
-					<div className="mb-4">
-						<label htmlFor="name" className="text-white mb-2 block">
-							Full name
-						</label>
-						<Input
-							type="text"
-							placeholder="Enter your Full Name"
-							value={name}
-							onChange={(e) => setName(e.target.value)}
-							className="mb-4 bg-gray-800 border-gray-600 text-white"
-						/>
-					</div>
+          <div className="mb-4">
+            <label htmlFor="name" className="text-white mb-2 block">
+              Full name
+            </label>
+            <Input
+              type="text"
+              placeholder="Enter your Full Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="mb-4 bg-gray-800 border-gray-600 text-white"
+            />
+          </div>
 
-					<div className="mb-4">
-						<label htmlFor="department" className="text-white mb-2 block">
-							Department
-						</label>
-						<Combobox
-							options={departments}
-							selected={department}
-							setSelected={setDepartment}
-						/>
-					</div>
+          <div className="mb-4">
+            <label htmlFor="department" className="text-white mb-2 block">
+              Department
+            </label>
+            <Combobox
+              options={departments}
+              selected={department}
+              setSelected={setDepartment}
+            />
+          </div>
 
-					<div className="mb-4">
-						<label htmlFor="email" className="text-white mb-2 block">
-							Email
-						</label>
-						<Input
-							type="email"
-							placeholder="Enter your Amrita Email"
-							value={email}
-							onChange={(e) => setEmail(e.target.value)}
-							className="mb-4 bg-gray-800 border-gray-600 text-white"
-						/>
-					</div>
+          <div className="mb-4">
+            <label htmlFor="email" className="text-white mb-2 block">
+              Email
+            </label>
+            <Input
+              type="email"
+              placeholder="Enter your Amrita Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="mb-4 bg-gray-800 border-gray-600 text-white"
+            />
+          </div>
 
-					<div className="mb-4">
-						<label htmlFor="password" className="text-white mb-2 block">
-							Password
-						</label>
-						<PasswordInput
-							id="password"
-							placeholder="Password"
-							value={password}
-							onChange={(e) => setPassword(e.target.value)}
-							className="bg-gray-800 border-gray-600 text-white"
-						/>
-					</div>
+          <div className="mb-4">
+            <label htmlFor="password" className="text-white mb-2 block">
+              Password
+            </label>
+            <PasswordInput
+              id="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="bg-gray-800 border-gray-600 text-white"
+            />
+          </div>
 
-					<div className="mb-6">
-						<label htmlFor="confirmPassword" className="text-white mb-2 block">
-							Re-enter password
-						</label>
-						<PasswordInput
-							id="confirmPassword"
-							placeholder="Confirm Password"
-							value={confirmPassword}
-							onChange={(e) => setConfirmPassword(e.target.value)}
-							className="bg-gray-800 border-gray-600 text-white"
-							disabled={loading}
-						/>
-					</div>
+          <div className="mb-6">
+            <label htmlFor="confirmPassword" className="text-white mb-2 block">
+              Re-enter password
+            </label>
+            <PasswordInput
+              id="confirmPassword"
+              placeholder="Confirm Password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="bg-gray-800 border-gray-600 text-white"
+              disabled={loading}
+            />
+          </div>
 
-					<Button
-						onClick={handleSignUp}
-						className="w-full bg-green-600 hover:bg-green-500 text-white font-medium py-2"
-						disabled={loading}
-					>
-						{loading ? "Signing up..." : "Sign Up"}
-					</Button>
+          <Button
+            onClick={handleSignUp}
+            className="w-full bg-green-600 hover:bg-green-500 text-white font-medium py-2"
+            disabled={loading}
+          >
+            {loading ? "Signing up..." : "Sign Up"}
+          </Button>
 
-					<p className="text-gray-400 text-sm mt-4 text-center">
-						Already have an account?{" "}
-						<a href="/login" className="text-green-500">
-							Login
-						</a>
-					</p>
-				</CardContent>
-			</Card>
-			<br />
-		</div>
-	);
+          <p className="text-gray-400 text-sm mt-4 text-center">
+            Already have an account?{" "}
+            <a href="/login" className="text-green-500">
+              Login
+            </a>
+          </p>
+        </CardContent>
+      </Card>
+      <br />
+    </div>
+  );
 };
 
 export default SignUp;

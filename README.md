@@ -85,6 +85,7 @@ Replace the values with the ones from:
 ```sh
 npm run dev
 ```
+
 ## To create a project in firebase follow these steps carefully:
 
 1. Go to the Firebase Console
@@ -146,6 +147,7 @@ Role changes take effect immediately and will be reflected in the application up
 next authentication or page refresh.
 
 ## Reference Screenshot:
+
 ![Screenshot 2025-05-30 182409](https://github.com/user-attachments/assets/08415d00-eb4e-4dbd-9939-8fc56761149a)
 
 ---
@@ -161,8 +163,8 @@ https://console.firebase.google.com/firestore/indexescreate_composite=...
 Clicking this link will take you to Firestore’s console with the "Create Index" form pre-filled. Just click "Create".
 
 ## Reference Screenshot:
-![Image](https://github.com/user-attachments/assets/10d9a32f-c185-423b-8458-44768f14c2b5)
 
+![Image](https://github.com/user-attachments/assets/10d9a32f-c185-423b-8458-44768f14c2b5)
 
 ## 🧼 Code Formatting (Prettier)
 

@@ -4,15 +4,15 @@ import ReviewerViewProposal from "@/app/_components/ReviewerPages/ReviewerViewPr
 import { useRouter, useParams } from "next/navigation";
 
 export default function ViewProposalDetailsPage() {
-	const router = useRouter();
-	const { id } = useParams();
+  const router = useRouter();
+  const { id } = useParams();
 
-	return (
-		<div className="h-full max-h-full overflow-y-auto">
-			<ReviewerViewProposal
-				proposalId={id}
-				onBack={() => router.push("/reviewer/proposals")}
-			/>
-		</div>
-	);
+  return (
+    <div className="h-full max-h-full overflow-y-auto">
+      <ReviewerViewProposal
+        proposalId={id}
+        onBack={() => router.push("/reviewer/proposals")}
+      />
+    </div>
+  );
 }
