@@ -175,3 +175,44 @@ npx prettier --write .
 ```
 
 **✅ Important:** Run this **before committing, pushing, or opening a pull request.**
+
+## 🏗️ System Architecture & Technical Design
+
+### Request Flow
+1. **Client Submission:** Users submit data (e.g., proposal forms or reviewer actions) via the React frontend.
+2. **Gateway Validation:** Next.js API Routes intercept the request and validate the JSON payload using strictly defined Zod schemas.
+3. **Database Execution:** If validation passes, Firestore SDK services (`app/api/proposalService.js`, etc.) execute the query.
+4. **Data Persistence:** Data is written to Google Cloud Firestore (NoSQL), organizing parent documents and subcollections (like `History`).
+5. **Client Sync:** The frontend receives the response, updates state, and renders the success/failure UI.
+
+### API Design
+The backend relies on Next.js App Router API endpoints that act as secure RESTful gateways to the Firestore database.
+- **Strict Validation Gateway:** All incoming payloads are validated using Zod before any database interaction.
+- **Decoupled Architecture:** Database logic is abstracted away from API routes into service files (e.g., `proposalService.js`, `userService.js`).
+- **Stateless & Serverless:** API routes execute statelessly via Vercel/Next.js edge and serverless environments.
+
+### Schema Design & Data Modeling
+Given Firestore is a schema-less NoSQL database, structural integrity is enforced entirely at the application layer using Zod schemas (`/schemas/proposal.schema.js`, `/schemas/user.schema.js`).
+- **Denormalized Hierarchy:**
+  - `Auth`: Root collection storing user profiles and roles.
+  - `Proposals`: Root collection tracking active event proposals and their current approval states.
+  - `Proposals/{id}/History`: Subcollection used to archive past versions, minimizing the parent document size.
+- **Dynamic Validation (Zod `superRefine`):** Conditional schema constraints are actively applied (e.g., if `isIndividual` is false, `groupDetails` must be provided; if a user is a `Reviewer`, `level` must be a number).
+
+### Unique Constraints
+- **User Uniqueness:** Firebase Authentication inherently guarantees unique email identities.
+- **Data Deduplication:** We rely on Firestore auto-generated Document IDs for uniqueness across proposals and history items.
+- **Email Domain Restriction:** Zod regex ensures only `@cb.students.amrita.edu` emails can register.
+
+### Transactions and Idempotency
+- **Atomic Operations:** Instead of reading an array, modifying it in Node, and writing it back, the API strictly uses Firestore's `arrayUnion` operator (e.g., forwarding proposals). This is an atomic database-level operation that prevents duplication and guarantees idempotency, meaning the same request sent twice won't corrupt the array.
+- **Subcollections vs Arrays:** When dealing with potentially massive data (e.g., full version histories), we use subcollections instead of arrays to bypass Firestore's 1MB document size limit and avoid transaction bottlenecks.
+
+### Concurrency
+- **Race Condition Prevention:** By avoiding read-modify-write patterns and strictly utilizing Firestore atomic field operators (`arrayUnion`), concurrent updates by multiple reviewers do not overwrite each other.
+- **Version Bumping:** The `version` integer in the schema acts as a simplified optimistic concurrency control mechanism; it increments sequentially when major status changes occur (like a transition to "reviewed").
+
+### Error Handling
+- **Predictable API Responses:** All service methods implement robust `try/catch` blocks.
+- **Standardized Status Codes:** API routes catch exceptions and map them to appropriate HTTP status codes (e.g., 400 for Zod schema validation errors, 500 for Firestore operation failures).
+- **Zod Error Formatting:** Zod validation failures return precise paths and custom `ZodIssueCode.custom` messages so the frontend can easily display form-specific error states to the user.
